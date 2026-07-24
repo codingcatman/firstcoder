@@ -3,577 +3,682 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grow the Cow 🐄</title>
+  <title>The Dome</title>
+  <meta name="description" content="The Dome — a considered object. Explore the form in 3D: drag to rotate, scroll to zoom." />
   <style>
     :root {
-      --sky: #bfe3ff;
-      --grass: #7cc36b;
-      --panel: #ffffff;
-      --ink: #2c3e2f;
-      --accent: #4a8c3f;
+      --paper:   #f7efdc;   /* warm ivory background */
+      --paper-2: #f2e8d0;   /* slightly deeper tone for panels */
+      --ink:     #14110c;   /* near-black text */
+      --ink-soft:#5c554a;   /* muted body copy */
+      --line:    rgba(20, 17, 12, 0.14);
+      --measure: 34rem;     /* comfortable reading width */
     }
 
     * { box-sizing: border-box; }
 
+    html { scroll-behavior: smooth; }
+
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      background: var(--paper);
       color: var(--ink);
-      background: var(--sky);
+      font-family: "Inter", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      line-height: 1.6;
+    }
+
+    /* High-contrast display serif for the wordmark and headings, with a
+       graceful fall back to Georgia on systems without a Didone face. */
+    .serif {
+      font-family: "Didot", "Bodoni MT", "Playfair Display",
+                   "Hoefler Text", Georgia, "Times New Roman", serif;
+    }
+
+    a { color: inherit; }
+
+    /* ---------- Layout scaffolding ---------- */
+
+    .wrap {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: 0 clamp(20px, 5vw, 56px);
+    }
+
+    /* ---------- Top bar ---------- */
+
+    .topbar {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding-top: 28px;
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .topbar nav a {
+      text-decoration: none;
+      margin-left: 26px;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
+    }
+    .topbar nav a:hover { opacity: 1; }
+    .topbar nav { display: none; }
+    @media (min-width: 720px) { .topbar nav { display: block; } }
+
+    /* ---------- Hero ---------- */
+
+    .hero {
+      position: relative;
+      min-height: 92vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 24px 16px 48px;
+      justify-content: flex-start;
     }
 
-    h1 {
-      margin: 8px 0 4px;
-      font-size: 2rem;
-      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.6);
+    .wordmark {
+      position: relative;
+      z-index: 3;
+      pointer-events: none;
+      margin-top: clamp(10px, 4vh, 40px);
     }
 
-    .subtitle {
-      margin: 0 0 20px;
-      opacity: 0.85;
-      font-size: 0.95rem;
+    .wordmark .the {
+      display: block;
+      font-size: clamp(1.6rem, 4.5vw, 3rem);
+      font-weight: 500;
+      line-height: 1;
+      margin-left: 0.12em;
     }
 
+    .wordmark .dome {
+      display: block;
+      font-size: clamp(4.2rem, 20vw, 13rem);
+      font-weight: 700;
+      line-height: 0.82;
+      letter-spacing: -0.01em;
+      margin-top: -0.06em;
+    }
+
+    /* The stage holds the 3D canvas; it sits behind the wordmark and the
+       tagline so the whole hero reads as one composition. */
     .stage {
-      width: min(680px, 100%);
-      text-align: center;
-    }
-
-    .cow-yard {
-      height: 420px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .zoom-controls {
       position: absolute;
-      bottom: 10px;
-      right: 10px;
-      display: flex;
-      gap: 8px;
+      inset: 0;
+      z-index: 1;
     }
 
-    .zoom-controls button {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.75);
-      color: var(--ink);
-      font-size: 1.5rem;
-      line-height: 1;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      transition: transform 0.1s ease, background 0.15s ease;
-    }
-
-    .zoom-controls button:hover { background: #fff; transform: translateY(-1px); }
-    .zoom-controls button:active { transform: translateY(1px); }
-
-    .mute-btn {
+    .stage-inner {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.75);
-      font-size: 1.2rem;
-      line-height: 1;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      transition: transform 0.1s ease, background 0.15s ease;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: min(720px, 92vw);
+      height: min(720px, 78vh);
     }
 
-    .mute-btn:hover { background: #fff; transform: translateY(-1px); }
-    .mute-btn:active { transform: translateY(1px); }
+    /* Soft contact shadow grounding the object. */
+    .contact-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 12%;
+      width: 46%;
+      height: 8%;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse at center,
+                  rgba(20, 17, 12, 0.28) 0%,
+                  rgba(20, 17, 12, 0.10) 45%,
+                  transparent 72%);
+      filter: blur(6px);
+      z-index: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
 
-    .cow-scene {
-      position: relative;
-      width: min(520px, 100%);
-      height: 380px;
-      perspective: 900px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    #domeScene {
+      position: absolute;
+      inset: 0;
       cursor: grab;
-      touch-action: none;      /* let us handle drag on touch */
+      touch-action: none;
       user-select: none;
+      z-index: 2;
     }
+    #domeScene.dragging { cursor: grabbing; }
 
-    .cow-scene.dragging { cursor: grabbing; }
-    .cow-scene.happy { animation: chew 0.4s ease; }
-
-    @keyframes chew {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-14px); }
-    }
-
-    /* Rotating + scaling group that holds the whole 3D cow model. */
-    .cow-cube {
-      position: relative;
-      width: 1px;
-      height: 1px;
-      transform-style: preserve-3d;
-      transition: transform 0.2s ease;   /* smooths growth; disabled while dragging */
-    }
-
-    .cow-cube.grown,
-    #cowCanvas.grown {
-      filter: drop-shadow(0 0 12px rgba(255, 214, 71, 0.85));
-    }
-
-    #cowCanvas {
+    #domeCanvas {
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100%;
       height: 100%;
       display: block;
     }
-    #cowCanvas[hidden] { display: none; }
 
-    .model-status {
-      min-height: 1.1em;
-      margin: 6px 0 0;
+    /* Fallback shown if WebGL/the model is unavailable. */
+    .stage-fallback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      color: var(--ink-soft);
       font-size: 0.85rem;
-      opacity: 0.8;
     }
+    .stage.no-webgl .stage-fallback { display: flex; }
+    .stage.no-webgl #domeScene { display: none; }
 
-    /* A cuboid part of the cow. Its faces are generated in JS. */
-    .box {
+    /* Interaction hint + zoom controls, pinned to the hero. */
+    .hero-foot {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform-style: preserve-3d;
+      left: 0;
+      right: 0;
+      bottom: clamp(18px, 5vh, 44px);
+      z-index: 4;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
     }
-
-    /* A single face of a part. Size + placement transform set inline in JS. */
-    .bf {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      background: var(--c, #fdfdfd);
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
-    }
-
-    /* Simple directional shading so the model reads as solid 3D. */
-    .bf.top    { filter: brightness(1.15); }
-    .bf.bottom { filter: brightness(0.55); }
-    .bf.right  { filter: brightness(0.9); }
-    .bf.left   { filter: brightness(0.78); }
-
-    /* Black-and-white cow spots on the body. */
-    .box.body .bf {
-      background-color: #fdfdfd;
-      background-image:
-        radial-gradient(circle at 24% 30%, #242424 0 17%, transparent 18%),
-        radial-gradient(circle at 70% 58%, #242424 0 21%, transparent 22%),
-        radial-gradient(circle at 46% 82%, #242424 0 11%, transparent 12%);
-    }
-
-    .box.head .bf,
-    .box.leg .bf    { --c: #f4f4f4; }
-    .box.tail .bf   { --c: #f0f0f0; }
-    .box.snout .bf  { --c: #f3aebd; }
-    .box.ear .bf    { --c: #f6d7de; }
-    .box.horn .bf   { --c: #e9dcc3; }
-    .box.hoof .bf,
-    .box.eye .bf,
-    .box.tailtip .bf { --c: #1c1c1c; }
 
     .hint {
-      margin: 10px 0 0;
-      font-size: 0.85rem;
-      opacity: 0.7;
-    }
-
-    .progress-wrap {
-      margin: 20px 0 4px;
-      background: #e8ede8;
-      border-radius: 999px;
-      height: 18px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #8fd07a, var(--accent));
-      border-radius: 999px;
-      transition: width 0.4s ease;
-    }
-
-    .score {
-      font-size: 1.05rem;
-      font-weight: bold;
-      margin-top: 8px;
-    }
-
-    .message {
-      min-height: 1.4em;
-      margin: 10px 0 4px;
-      font-size: 0.95rem;
-      color: var(--accent);
-      font-weight: bold;
-    }
-
-    .foods {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
       display: flex;
-      gap: 28px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-top: 14px;
+      align-items: center;
+      gap: 10px;
+    }
+    .hint .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--ink); opacity: 0.5;
     }
 
-    /* Plain clickable emojis — no button chrome. */
-    button.food {
-      border: none;
-      background: none;
-      padding: 6px;
-      font-size: 3rem;
+    .zoom-controls { display: flex; gap: 8px; }
+    .zoom-controls button {
+      width: 42px; height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: transparent;
+      color: var(--ink);
+      font-size: 1.2rem;
       line-height: 1;
       cursor: pointer;
-      transition: transform 0.12s ease, opacity 0.2s ease;
+      transition: background 0.18s ease, transform 0.1s ease;
+    }
+    .zoom-controls button:hover { background: var(--paper-2); }
+    .zoom-controls button:active { transform: translateY(1px); }
+
+    .scroll-cue {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(18px, 5vh, 44px);
+      transform: translateX(-50%);
+      z-index: 4;
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      opacity: 0.75;
+      animation: floaty 2.6s ease-in-out infinite;
+    }
+    @keyframes floaty {
+      0%, 100% { transform: translate(-50%, 0); }
+      50%      { transform: translate(-50%, 6px); }
     }
 
-    button.food:hover:not(:disabled) { transform: scale(1.2); }
-    button.food:active:not(:disabled) { transform: scale(0.92); }
-    button.food:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* ---------- Concept sections ---------- */
 
-    .reset {
-      margin-top: 18px;
-      border: none;
-      border-radius: 16px;
-      padding: 14px 28px;
-      font-size: 1.05rem;
-      font-family: inherit;
-      font-weight: bold;
-      color: #fff;
-      background: #3d6fb4;
-      cursor: pointer;
-      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
-      transition: transform 0.1s ease;
+    .sections { padding: clamp(60px, 12vh, 140px) 0 40px; }
+
+    .lede {
+      max-width: var(--measure);
+      font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+      line-height: 1.45;
+      font-weight: 400;
+      margin: 0 0 clamp(56px, 10vh, 120px);
+      color: var(--ink);
+    }
+    .lede em { font-style: italic; }
+
+    .rule {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 0;
     }
 
-    .reset:hover { transform: translateY(-2px); }
-    .reset:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
-    .reset[hidden] { display: none; }
+    .section {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px 48px;
+      padding: clamp(34px, 6vh, 60px) 0;
+    }
+    @media (min-width: 760px) {
+      .section { grid-template-columns: 8rem 1fr; }
+    }
+
+    .section .marker {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding-top: 0.5rem;
+    }
+
+    .section h2 {
+      margin: 0 0 0.6em;
+      font-size: clamp(1.5rem, 3.4vw, 2.4rem);
+      font-weight: 600;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+    }
+
+    .section p {
+      margin: 0 0 1em;
+      max-width: var(--measure);
+      color: var(--ink-soft);
+      font-size: 1.02rem;
+    }
+    .section p:last-child { margin-bottom: 0; }
+
+    /* Spec list */
+    .specs {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-width: var(--measure);
+    }
+    .specs li {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+      font-size: 0.95rem;
+    }
+    .specs li:last-child { border-bottom: 1px solid var(--line); }
+    .specs .k { color: var(--ink-soft); letter-spacing: 0.02em; }
+    .specs .v { text-align: right; }
+
+    /* ---------- Footer ---------- */
+
+    footer {
+      padding: clamp(48px, 9vh, 100px) 0 40px;
+      border-top: 1px solid var(--line);
+      margin-top: clamp(40px, 8vh, 90px);
+    }
+    .foot-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .foot-grid .mark {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .foot-grid .meta {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .scroll-cue { animation: none; }
+    }
   </style>
 </head>
 <body>
-  <h1>Grow the Cow 🐄</h1>
-  <p class="subtitle">Feed the cow to help it grow. Reach 30 points to fully grow it!</p>
 
-  <div class="stage">
-    <div class="cow-yard">
-      <div class="cow-scene" id="cowScene" title="Drag to rotate · scroll to zoom">
-        <div class="cow-cube" id="cowCube"></div>
-        <canvas id="cowCanvas" hidden></canvas>
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="wrap" style="position:relative; z-index:3;">
+      <div class="topbar">
+        <span>The Dome</span>
+        <nav>
+          <a href="#concept">Concept</a>
+          <a href="#form">Form</a>
+          <a href="#craft">Craft</a>
+          <a href="#specs">Specs</a>
+        </nav>
       </div>
+
+      <div class="wordmark serif" aria-label="The Dome">
+        <span class="the">The</span>
+        <span class="dome">Dome</span>
+      </div>
+    </div>
+
+    <!-- 3D stage sits behind the wordmark, filling the hero. -->
+    <div class="stage" id="stage" aria-hidden="false">
+      <div class="stage-inner">
+        <div class="contact-shadow" id="contactShadow"></div>
+        <div id="domeScene" title="Drag to rotate · scroll to zoom">
+          <canvas id="domeCanvas"></canvas>
+        </div>
+      </div>
+      <div class="stage-fallback">
+        <p>This object is best viewed in a browser with WebGL enabled.<br />
+           Interactive 3D model unavailable.</p>
+      </div>
+    </div>
+
+    <div class="wrap hero-foot">
+      <p class="hint"><span class="dot"></span> Drag to rotate · scroll to zoom</p>
       <div class="zoom-controls">
         <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
         <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
       </div>
-      <button type="button" id="muteBtn" class="mute-btn" aria-label="Mute sound">🔊</button>
-    </div>
-    <p class="hint">🖱️ Drag to spin the cow · scroll, pinch, or use +/− to zoom.</p>
-    <p class="model-status" id="modelStatus"></p>
-
-    <div class="progress-wrap">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div class="score" id="score">Growth: 0 / 30 points</div>
-
-    <p class="message" id="message">Pick a food to start feeding!</p>
-
-    <div class="foods" id="foods">
-      <button class="food" data-food="grass" data-points="3"
-              title="Grass · +3 points" aria-label="Feed grass, plus 3 points">🌿</button>
-      <button class="food" data-food="soy" data-points="2"
-              title="Soy · +2 points" aria-label="Feed soy, plus 2 points">🫘</button>
-      <button class="food" data-food="flowers" data-points="1"
-              title="Flowers · +1 point" aria-label="Feed flowers, plus 1 point">🌸</button>
     </div>
 
-    <button class="reset" id="reset" hidden>Play again 🔄</button>
-  </div>
+    <div class="scroll-cue">Scroll</div>
+  </header>
 
-  <!-- Vendored Three.js (r128 UMD) + STL loader for the 3D cow model. -->
+  <!-- ===================== CONCEPT ===================== -->
+  <main class="wrap sections">
+
+    <!-- NOTE: The copy below is placeholder text. Replace it with the real
+         story of The Dome — what it is, who it's for, and why it matters. -->
+    <p class="lede serif">
+      A single, considered object — where structure becomes surface, and
+      surface becomes <em>light</em>. The Dome is an exercise in restraint:
+      everything necessary, nothing more.
+    </p>
+
+    <hr class="rule" />
+
+    <section class="section" id="concept">
+      <div class="marker">01 — Concept</div>
+      <div>
+        <h2>An idea, distilled</h2>
+        <p>
+          The Dome began as a question: how little can a form say, and still
+          say everything? Its curved shell is not decoration but the whole
+          argument — a continuous surface that shelters, directs, and holds.
+        </p>
+        <p>
+          Rotate it. Every angle is intentional. There is no back, no front,
+          no seam to hide — only one uninterrupted gesture from base to apex.
+        </p>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
+    <section class="section" id="form">
+      <div class="marker">02 — Form</div>
+      <div>
+        <h2>Form that follows physics</h2>
+        <p>
+          The geometry is derived, not styled. The profile you see is the
+          shape a load wants to take — a dome distributes force along its own
+          curvature, so the material can be thin and the presence can be quiet.
+        </p>
+        <p>
+          Zoom in and the proportion holds at every scale: the same clean
+          arc whether it sits in your hand or across a room.
+        </p>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
+    <section class="section" id="craft">
+      <div class="marker">03 — Craft</div>
+      <div>
+        <h2>Made to be kept</h2>
+        <p>
+          Modelled from a single CAD surface and built to close tolerances,
+          The Dome is engineered for parts that meet without a gap. What looks
+          effortless is the result of many quiet decisions.
+        </p>
+        <p>
+          It is designed to age well — to be the kind of object you stop
+          noticing, and then would not part with.
+        </p>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
+    <section class="section" id="specs">
+      <div class="marker">04 — Specs</div>
+      <div>
+        <h2>At a glance</h2>
+        <ul class="specs">
+          <li><span class="k">Footprint</span><span class="v">102 × 102 mm</span></li>
+          <li><span class="k">Height</span><span class="v">110 mm</span></li>
+          <li><span class="k">Geometry</span><span class="v">Single continuous surface</span></li>
+          <li><span class="k">Source</span><span class="v">Parametric CAD (STL)</span></li>
+          <li><span class="k">Status</span><span class="v">Prototype</span></li>
+        </ul>
+        <p style="margin-top:20px; font-size:0.85rem;">
+          Placeholder specifications — update with the real figures for The Dome.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="wrap foot-grid">
+      <span class="mark serif">The Dome</span>
+      <span class="meta">Designed &amp; engineered · 2026</span>
+      <span class="meta">Drag · Scroll · Explore</span>
+    </div>
+  </footer>
+
+  <!-- Vendored Three.js (r128 UMD) + STL loader, shared with the rest of the
+       project so the model renders with no network access. -->
   <script src="vendor/three.min.js"></script>
   <script src="vendor/STLLoader.js"></script>
-  <!-- The cow model embedded as base64 so it loads even from a file:// URL. -->
-  <script src="models/cow-stl-data.js"></script>
+  <!-- The Dome model embedded as base64 so it loads even from a file:// URL. -->
+  <script src="models/dome-stl-data.js"></script>
 
   <script>
     (function () {
       "use strict";
 
-      var MAX_POINTS = 30;
-      var MIN_SCALE = 0.7;   // model scale when empty
-      var MAX_SCALE = 1.7;   // model scale when fully grown
-
-      var sceneEl = document.getElementById("cowScene");
-      var cubeEl = document.getElementById("cowCube");
-      var canvasEl = document.getElementById("cowCanvas");
-      var scoreEl = document.getElementById("score");
-      var barEl = document.getElementById("progressBar");
-      var messageEl = document.getElementById("message");
-      var foodsEl = document.getElementById("foods");
-      var resetEl = document.getElementById("reset");
-      var modelStatusEl = document.getElementById("modelStatus");
-      var muteBtnEl = document.getElementById("muteBtn");
-
-      var DEFAULT_MODEL_URL = "models/cow.stl";
-      var foodButtons = Array.prototype.slice.call(
-        foodsEl.querySelectorAll("button.food")
-      );
-
-      var points = 0;
-
-      // Three.js state for an uploaded STL model (lazily initialised).
-      var three = null;      // { renderer, scene, camera, group }
-      var modelActive = false;
-      var modelBaseScale = 1; // normalises the uploaded model to a unit size
-
-      // Rotation state (degrees), starting at a 3/4 angle so the model
-      // reads as 3D right away.
-      var rotX = -14;
-      var rotY = -34;
-      var growthScale = MIN_SCALE;
-      var zoom = 1;   // user-controlled zoom, independent of growth
-
-      var FOOD_LABELS = {
-        grass: "grass 🌿",
-        soy: "soy 🫘",
-        flowers: "flowers 🌸"
-      };
-
-      // --- Sound effects (synthesized with Web Audio, no audio files) ---
-      var AudioCtx = window.AudioContext || window.webkitAudioContext;
-      var audioCtx = null;
-      var muted = false;
-
-      // Lazily create/resume the context (must follow a user gesture).
-      function ensureAudio() {
-        if (!AudioCtx) return null;
-        if (!audioCtx) audioCtx = new AudioCtx();
-        if (audioCtx.state === "suspended") audioCtx.resume();
-        return audioCtx;
-      }
-
-      // A single short tone with a quick pluck envelope.
-      function blip(freq, at, dur, type, peak) {
-        var osc = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
-        osc.type = type || "triangle";
-        osc.frequency.setValueAtTime(freq, at);
-        gain.gain.setValueAtTime(0.0001, at);
-        gain.gain.exponentialRampToValueAtTime(peak || 0.2, at + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(at);
-        osc.stop(at + dur + 0.03);
-      }
-
-      // A happy little "munch" that ticks upward; brighter for richer food.
-      function playFeedSound(foodPoints) {
-        if (muted) return;
-        var ctx = ensureAudio();
-        if (!ctx) return;
-        var t = ctx.currentTime;
-        var base = 300 + foodPoints * 90; // flowers lowest, grass highest
-        blip(base, t, 0.12, "triangle", 0.2);
-        blip(base * 1.5, t + 0.08, 0.14, "sine", 0.16);
-      }
-
-      // A short ascending fanfare when the cow is fully grown.
-      function playFinishSound() {
-        if (muted) return;
-        var ctx = ensureAudio();
-        if (!ctx) return;
-        var t = ctx.currentTime + 0.05;
-        [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
-          blip(f, t + i * 0.13, 0.24, "triangle", 0.22);
-        });
-      }
-
-      // --- Build the 3D cow model out of shaded cuboids ---
-
-      // Create one cuboid ("part") of size w x h x d, positioned at
-      // (x, y, z) with y pointing up. Faces are generated and shaded.
-      function makeBox(w, h, d, opts) {
-        opts = opts || {};
-        var box = document.createElement("div");
-        box.className = "box" + (opts.cls ? " " + opts.cls : "");
-        box.style.transform =
-          "translate3d(" + (opts.x || 0) + "px," +
-          (-(opts.y || 0)) + "px," + (opts.z || 0) + "px)" +
-          (opts.rx ? " rotateX(" + opts.rx + "deg)" : "") +
-          (opts.ry ? " rotateY(" + opts.ry + "deg)" : "") +
-          (opts.rz ? " rotateZ(" + opts.rz + "deg)" : "");
-
-        var faces = [
-          ["front",  w, h, "translateZ(" + (d / 2) + "px)"],
-          ["back",   w, h, "rotateY(180deg) translateZ(" + (d / 2) + "px)"],
-          ["right",  d, h, "rotateY(90deg) translateZ(" + (w / 2) + "px)"],
-          ["left",   d, h, "rotateY(-90deg) translateZ(" + (w / 2) + "px)"],
-          ["top",    w, d, "rotateX(90deg) translateZ(" + (h / 2) + "px)"],
-          ["bottom", w, d, "rotateX(-90deg) translateZ(" + (h / 2) + "px)"]
-        ];
-
-        faces.forEach(function (f) {
-          var el = document.createElement("div");
-          el.className = "bf " + f[0];
-          el.style.width = f[1] + "px";
-          el.style.height = f[2] + "px";
-          el.style.transform = "translate(-50%, -50%) " + f[3];
-          box.appendChild(el);
-        });
-
-        return box;
-      }
-
-      function buildCow() {
-        var parts = [
-          // torso
-          makeBox(110, 55, 62, { cls: "body", x: 0, y: 0, z: 0 }),
-          // head + face details (cow faces toward +x)
-          makeBox(46, 46, 46, { cls: "head",  x: 66, y: 10, z: 0 }),
-          makeBox(26, 24, 34, { cls: "snout", x: 92, y: 2,  z: 0 }),
-          makeBox(7,  9,  6,  { cls: "eye",   x: 88, y: 18, z: 14 }),
-          makeBox(7,  9,  6,  { cls: "eye",   x: 88, y: 18, z: -14 }),
-          makeBox(10, 16, 24, { cls: "ear",   x: 58, y: 24, z: 32, rz: 18 }),
-          makeBox(10, 16, 24, { cls: "ear",   x: 58, y: 24, z: -32, rz: 18 }),
-          makeBox(7,  16, 7,  { cls: "horn",  x: 56, y: 38, z: 12 }),
-          makeBox(7,  16, 7,  { cls: "horn",  x: 56, y: 38, z: -12 }),
-          // legs
-          makeBox(18, 46, 18, { cls: "leg", x: 34,  y: -50, z: 20 }),
-          makeBox(18, 46, 18, { cls: "leg", x: 34,  y: -50, z: -20 }),
-          makeBox(18, 46, 18, { cls: "leg", x: -34, y: -50, z: 20 }),
-          makeBox(18, 46, 18, { cls: "leg", x: -34, y: -50, z: -20 }),
-          // hooves
-          makeBox(19, 9, 19, { cls: "hoof", x: 34,  y: -74, z: 20 }),
-          makeBox(19, 9, 19, { cls: "hoof", x: 34,  y: -74, z: -20 }),
-          makeBox(19, 9, 19, { cls: "hoof", x: -34, y: -74, z: 20 }),
-          makeBox(19, 9, 19, { cls: "hoof", x: -34, y: -74, z: -20 }),
-          // tail
-          makeBox(6, 46, 6, { cls: "tail",    x: -58, y: -6,  z: 0, rz: -14 }),
-          makeBox(10, 13, 10, { cls: "tailtip", x: -64, y: -30, z: 0 })
-        ];
-        parts.forEach(function (p) { cubeEl.appendChild(p); });
-      }
-
       var DEG = Math.PI / 180;
+      var MIN_ZOOM = 0.45;
+      var MAX_ZOOM = 3.5;
 
-      function updateTransform() {
-        if (modelActive && three) {
-          three.group.rotation.x = rotX * DEG;
-          three.group.rotation.y = rotY * DEG;
-          var s = modelBaseScale * growthScale * zoom;
-          three.group.scale.set(s, s, s);
-          renderThree();
-        } else {
-          cubeEl.style.transform =
-            "rotateX(" + rotX + "deg) rotateY(" + rotY + "deg) " +
-            "scale(" + (growthScale * zoom) + ")";
+      var stageEl   = document.getElementById("stage");
+      var sceneEl   = document.getElementById("domeScene");
+      var canvasEl  = document.getElementById("domeCanvas");
+      var shadowEl  = document.getElementById("contactShadow");
+
+      // View state.
+      var rotX = -12;   // gentle downward tilt for a 3/4 read
+      var rotY = -28;
+      var zoom = 1.05;
+      var modelBaseScale = 1;
+
+      // Idle auto-spin: slowly turns the object until the user interacts,
+      // then eases back after they let go.
+      var autoSpin = true;
+      var idleTimer = null;
+
+      var three = null; // { renderer, scene, camera, group, mesh }
+
+      function hasWebGL() {
+        try {
+          var c = document.createElement("canvas");
+          return !!(window.WebGLRenderingContext &&
+            (c.getContext("webgl") || c.getContext("experimental-webgl")));
+        } catch (e) { return false; }
+      }
+
+      function sceneSize() {
+        return {
+          w: sceneEl.clientWidth || 400,
+          h: sceneEl.clientHeight || 400
+        };
+      }
+
+      function initThree() {
+        if (three) return three;
+        var s = sceneSize();
+
+        var renderer = new THREE.WebGLRenderer({
+          canvas: canvasEl, antialias: true, alpha: true
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(s.w, s.h, false);
+
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(38, s.w / s.h, 0.1, 100);
+        camera.position.set(0, 0, 5);
+
+        // Warm studio lighting tuned for a dark object on ivory.
+        scene.add(new THREE.HemisphereLight(0xfff7e8, 0x8c7a5c, 0.85));
+        var key = new THREE.DirectionalLight(0xfff4e0, 1.05);
+        key.position.set(3, 4, 3);
+        scene.add(key);
+        var rim = new THREE.DirectionalLight(0xffffff, 0.55);
+        rim.position.set(-4, 2, -3);
+        scene.add(rim);
+        var fill = new THREE.DirectionalLight(0xffe9cc, 0.25);
+        fill.position.set(0, -3, 2);
+        scene.add(fill);
+
+        var group = new THREE.Group();
+        scene.add(group);
+
+        three = { renderer: renderer, scene: scene, camera: camera,
+                  group: group, mesh: null };
+        return three;
+      }
+
+      function applyTransform() {
+        if (!three) return;
+        three.group.rotation.x = rotX * DEG;
+        three.group.rotation.y = rotY * DEG;
+        var sc = modelBaseScale * zoom;
+        three.group.scale.set(sc, sc, sc);
+      }
+
+      function renderThree() {
+        if (three) three.renderer.render(three.scene, three.camera);
+      }
+
+      function resizeThree() {
+        if (!three) return;
+        var s = sceneSize();
+        three.renderer.setSize(s.w, s.h, false);
+        three.camera.aspect = s.w / s.h;
+        three.camera.updateProjectionMatrix();
+        renderThree();
+      }
+
+      // Continuous render loop (needed for the idle auto-spin and for smooth
+      // interaction). Cheap: one static mesh, no shadows.
+      function loop() {
+        if (autoSpin) { rotY += 0.18; }
+        applyTransform();
+        renderThree();
+        requestAnimationFrame(loop);
+      }
+
+      function loadSTL(arrayBuffer) {
+        var t = initThree();
+        var geometry = new THREE.STLLoader().parse(arrayBuffer);
+        geometry.rotateX(-Math.PI / 2);   // CAD Z-up -> Three.js Y-up
+        geometry.center();                // pivot on the model's centre
+        geometry.computeVertexNormals();
+        geometry.computeBoundingSphere();
+
+        var radius = (geometry.boundingSphere &&
+                      geometry.boundingSphere.radius) || 1;
+        modelBaseScale = radius > 0 ? (1.35 / radius) : 1;
+
+        if (t.mesh) {
+          t.group.remove(t.mesh);
+          t.mesh.geometry.dispose();
+          t.mesh.material.dispose();
         }
+
+        // Refined matte graphite — soft, diffuse highlights so the faceted
+        // CAD surface reads as one smooth, premium object.
+        var material = new THREE.MeshStandardMaterial({
+          color: 0x201d18, roughness: 0.62, metalness: 0.12
+        });
+        t.mesh = new THREE.Mesh(geometry, material);
+        t.group.add(t.mesh);
+
+        resizeThree();
+        applyTransform();
+        renderThree();
       }
 
-      function render() {
-        var clamped = Math.min(points, MAX_POINTS);
-        var ratio = clamped / MAX_POINTS;
-
-        // Grow the cow by scaling the whole 3D cube.
-        growthScale = MIN_SCALE + (MAX_SCALE - MIN_SCALE) * ratio;
-        updateTransform();
-
-        // Progress bar + score text.
-        barEl.style.width = (ratio * 100) + "%";
-        scoreEl.textContent = "Growth: " + clamped + " / " + MAX_POINTS + " points";
+      function b64ToArrayBuffer(b64) {
+        var bin = atob(b64);
+        var len = bin.length;
+        var bytes = new Uint8Array(len);
+        for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
       }
 
-      function feed(food, foodPoints) {
-        if (points >= MAX_POINTS) return;
-
-        points += foodPoints;
-        if (points > MAX_POINTS) points = MAX_POINTS;
-
-        messageEl.textContent = "Yum! You fed " + FOOD_LABELS[food] +
-          " (+" + foodPoints + ").";
-
-        playFeedSound(foodPoints);
-
-        // Chew bounce on the scene (independent of the cube's rotation).
-        sceneEl.classList.remove("happy");
-        void sceneEl.offsetWidth; // restart animation
-        sceneEl.classList.add("happy");
-
-        render();
-
-        if (points >= MAX_POINTS) finish();
+      function loadModel() {
+        if (typeof THREE === "undefined" || !THREE.STLLoader || !hasWebGL()) {
+          stageEl.classList.add("no-webgl");
+          return;
+        }
+        try {
+          if (typeof window.__DOME_STL_B64 === "string") {
+            loadSTL(b64ToArrayBuffer(window.__DOME_STL_B64));
+            requestAnimationFrame(loop);
+            return;
+          }
+        } catch (err) {
+          if (window.console) console.error(err);
+        }
+        // Fallback: fetch the .stl (works when served over HTTP).
+        fetch("models/dome.stl")
+          .then(function (r) {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.arrayBuffer();
+          })
+          .then(function (buf) { loadSTL(buf); requestAnimationFrame(loop); })
+          .catch(function (err) {
+            if (window.console) console.error(err);
+            stageEl.classList.add("no-webgl");
+          });
       }
 
-      function setGrown(on) {
-        cubeEl.classList.toggle("grown", on);
-        canvasEl.classList.toggle("grown", on);
-      }
+      // ---------- Interaction: drag to rotate, wheel/pinch/buttons to zoom ----------
+      var pointers = new Map();
+      var lastPinch = null;
 
-      function finish() {
-        setGrown(true);
-        playFinishSound();
-        messageEl.textContent = "🎉 The cow is fully grown! Great job! " +
-          "Drag it around to admire your work.";
-        foodButtons.forEach(function (btn) { btn.disabled = true; });
-        resetEl.hidden = false;
-        resetEl.focus();
+      function pauseSpin() {
+        autoSpin = false;
+        if (idleTimer) clearTimeout(idleTimer);
       }
-
-      function reset() {
-        points = 0;
-        setGrown(false);
-        messageEl.textContent = "Pick a food to start feeding!";
-        foodButtons.forEach(function (btn) { btn.disabled = false; });
-        resetEl.hidden = true;
-        render();
+      function scheduleResumeSpin() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(function () { autoSpin = true; }, 3500);
       }
-
-      // --- Interaction: drag to rotate, wheel/pinch/buttons to zoom ---
-      var MIN_ZOOM = 0.4;
-      var MAX_ZOOM = 3;
-      var pointers = new Map();   // active pointers: id -> { x, y }
-      var lastPinch = null;       // previous two-finger distance (px)
 
       function setZoom(z) {
         zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
-        updateTransform();
-      }
-
-      function beginInteract() {
-        sceneEl.classList.add("dragging");
-        cubeEl.style.transition = "none"; // 1:1 responsiveness while interacting
-      }
-
-      function endInteractIfIdle() {
-        if (pointers.size === 0) {
-          sceneEl.classList.remove("dragging");
-          cubeEl.style.transition = ""; // restore smoothing for growth/zoom buttons
-        }
+        // Fade the contact shadow a touch as the object shrinks/grows.
+        if (shadowEl) shadowEl.style.opacity =
+          String(Math.max(0.25, Math.min(1, zoom)));
       }
 
       sceneEl.addEventListener("pointerdown", function (e) {
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) lastPinch = null; // (re)start pinch tracking
-        beginInteract();
+        if (pointers.size === 2) lastPinch = null;
+        pauseSpin();
+        sceneEl.classList.add("dragging");
         if (sceneEl.setPointerCapture) {
           try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
         }
@@ -584,197 +689,48 @@
         var p = pointers.get(e.pointerId);
         if (!p) return;
         var prevX = p.x, prevY = p.y;
-        p.x = e.clientX;
-        p.y = e.clientY;
+        p.x = e.clientX; p.y = e.clientY;
 
         if (pointers.size >= 2) {
-          // Two fingers: pinch to zoom.
           var pts = Array.from(pointers.values());
           var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          if (lastPinch != null && lastPinch > 0) {
-            setZoom(zoom * (dist / lastPinch));
-          }
+          if (lastPinch != null && lastPinch > 0) setZoom(zoom * (dist / lastPinch));
           lastPinch = dist;
         } else {
-          // One finger / mouse: rotate.
-          rotY += (p.x - prevX) * 0.6;
-          rotX += (p.y - prevY) * 0.6;
-          updateTransform();
+          rotY += (p.x - prevX) * 0.5;
+          rotX += (p.y - prevY) * 0.5;
+          rotX = Math.max(-85, Math.min(85, rotX));  // avoid flipping over
         }
       });
 
       function releasePointer(e) {
         pointers.delete(e.pointerId);
         if (pointers.size < 2) lastPinch = null;
-        endInteractIfIdle();
+        if (pointers.size === 0) {
+          sceneEl.classList.remove("dragging");
+          scheduleResumeSpin();
+        }
       }
-
       sceneEl.addEventListener("pointerup", releasePointer);
       sceneEl.addEventListener("pointercancel", releasePointer);
 
-      // Mouse wheel / trackpad zoom.
       sceneEl.addEventListener("wheel", function (e) {
         e.preventDefault();
-        setZoom(zoom * (e.deltaY < 0 ? 1.12 : 0.89));
+        pauseSpin();
+        setZoom(zoom * (e.deltaY < 0 ? 1.1 : 0.9));
+        scheduleResumeSpin();
       }, { passive: false });
 
-      // On-screen zoom buttons.
-      document.getElementById("zoomIn")
-        .addEventListener("click", function () { setZoom(zoom * 1.2); });
-      document.getElementById("zoomOut")
-        .addEventListener("click", function () { setZoom(zoom / 1.2); });
-
-      // --- Uploaded STL model (rendered with Three.js) ---
-
-      function initThree() {
-        if (three) return three;
-        var w = sceneEl.clientWidth || 400;
-        var h = sceneEl.clientHeight || 380;
-
-        var renderer = new THREE.WebGLRenderer({
-          canvas: canvasEl, antialias: true, alpha: true
-        });
-        renderer.setPixelRatio(window.devicePixelRatio || 1);
-        renderer.setSize(w, h, false);
-
-        var scene = new THREE.Scene();
-        var camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
-        camera.position.set(0, 0, 5);
-
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.95));
-        var key = new THREE.DirectionalLight(0xffffff, 0.85);
-        key.position.set(2, 3, 4);
-        scene.add(key);
-        var fill = new THREE.DirectionalLight(0xffffff, 0.3);
-        fill.position.set(-3, -1, -2);
-        scene.add(fill);
-
-        var group = new THREE.Group();
-        scene.add(group);
-
-        three = {
-          renderer: renderer, scene: scene, camera: camera,
-          group: group, mesh: null
-        };
-        return three;
-      }
-
-      function renderThree() {
-        if (three) three.renderer.render(three.scene, three.camera);
-      }
-
-      function resizeThree() {
-        if (!three) return;
-        var w = sceneEl.clientWidth, h = sceneEl.clientHeight;
-        three.renderer.setSize(w, h, false);
-        three.camera.aspect = w / h;
-        three.camera.updateProjectionMatrix();
-        renderThree();
-      }
-
-      function setModelActive(on) {
-        modelActive = on;
-        canvasEl.hidden = !on;
-        cubeEl.style.display = on ? "none" : "";
-        updateTransform();
-      }
-
-      function loadSTL(arrayBuffer, name) {
-        try {
-          var t = initThree();
-          var geometry = new THREE.STLLoader().parse(arrayBuffer);
-          geometry.rotateX(-Math.PI / 2);    // CAD Z-up -> Three.js Y-up
-          geometry.center();                 // pivot on the model's centre
-          geometry.computeVertexNormals();   // shade nicely
-          geometry.computeBoundingSphere();
-
-          var radius = (geometry.boundingSphere &&
-                        geometry.boundingSphere.radius) || 1;
-          modelBaseScale = radius > 0 ? (1.1 / radius) : 1;
-
-          if (t.mesh) {                    // drop any previous model
-            t.group.remove(t.mesh);
-            t.mesh.geometry.dispose();
-            t.mesh.material.dispose();
-          }
-
-          var material = new THREE.MeshStandardMaterial({
-            color: 0xa9702f, roughness: 0.72, metalness: 0.0, flatShading: false
-          });
-          t.mesh = new THREE.Mesh(geometry, material);
-          t.group.add(t.mesh);
-
-          setModelActive(true);
-          resizeThree();
-          modelStatusEl.textContent = "";
-          return true;
-        } catch (err) {
-          if (window.console) console.error(err);
-          modelStatusEl.textContent = "";
-          return false;
-        }
-      }
-
-      // Decode the base64-embedded STL into an ArrayBuffer.
-      function b64ToArrayBuffer(b64) {
-        var bin = atob(b64);
-        var len = bin.length;
-        var bytes = new Uint8Array(len);
-        for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-        return bytes.buffer;
-      }
-
-      // Load the built-in cow model on startup. It's embedded as base64 so it
-      // works from a file:// URL too; we fall back to fetch(), then to the CSS
-      // cow if all else fails.
-      function loadDefaultModel() {
-        if (typeof THREE === "undefined" || !THREE.STLLoader) return;
-        modelStatusEl.textContent = "Loading cow…";
-
-        if (typeof window.__COW_STL_B64 === "string") {
-          try {
-            loadSTL(b64ToArrayBuffer(window.__COW_STL_B64), "cow");
-            return;
-          } catch (err) {
-            if (window.console) console.error(err);
-          }
-        }
-
-        // Fallback: fetch the .stl (works when served over HTTP).
-        fetch(DEFAULT_MODEL_URL)
-          .then(function (res) {
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            return res.arrayBuffer();
-          })
-          .then(function (buf) { loadSTL(buf, "cow"); })
-          .catch(function (err) {
-            if (window.console) console.error(err);
-            modelStatusEl.textContent = ""; // keep the fallback cow silently
-          });
-      }
+      document.getElementById("zoomIn").addEventListener("click", function () {
+        pauseSpin(); setZoom(zoom * 1.15); scheduleResumeSpin();
+      });
+      document.getElementById("zoomOut").addEventListener("click", function () {
+        pauseSpin(); setZoom(zoom / 1.15); scheduleResumeSpin();
+      });
 
       window.addEventListener("resize", resizeThree);
 
-      foodButtons.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          feed(btn.getAttribute("data-food"),
-               parseInt(btn.getAttribute("data-points"), 10));
-        });
-      });
-
-      resetEl.addEventListener("click", reset);
-
-      muteBtnEl.addEventListener("click", function () {
-        muted = !muted;
-        muteBtnEl.textContent = muted ? "🔇" : "🔊";
-        muteBtnEl.setAttribute("aria-label", muted ? "Unmute sound" : "Mute sound");
-        if (!muted) ensureAudio();
-      });
-
-      // Initial state.
-      buildCow();       // CSS fallback cow (shown until/unless the STL loads)
-      render();
-      loadDefaultModel();
+      loadModel();
     })();
   </script>
 </body>

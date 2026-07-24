@@ -1,8 +1,8 @@
 # The Dome — portfolio site
 
-`dome.html` is a standalone, editorial portfolio page for **The Dome**. Open it
-in any browser (no build step or server needed) — the CAD model is embedded in
-the page, so it loads even from a `file://` URL.
+`index.html` is the front page: a standalone, editorial portfolio for **The
+Dome**. Open it in any browser (no build step or server needed) — the CAD model
+is embedded in the page, so it loads even from a `file://` URL.
 
 - The **3D model** (`models/dome.stl`) sits at the centre of the hero and:
   - **Drag** to rotate it and inspect every angle.
@@ -28,7 +28,7 @@ it's fully grown at **30 points**.
 
 ## How to play
 
-1. Open `index.html` in any web browser — just double-click it, no build step
+1. Open `cow.html` in any web browser — just double-click it, no build step
    or server needed. (The 3D model is embedded in the page, so it loads even
    from a `file://` URL.)
 2. Click a food button to feed the cow. Each food adds growth points:
@@ -57,7 +57,7 @@ browser — nothing is sent anywhere.
 
 ## Files
 
-- `index.html` — the game (HTML, CSS, and JavaScript in one file).
+- `cow.html` — the game (HTML, CSS, and JavaScript in one file).
 - `models/cow.stl` — the built-in 3D cow model (source asset).
 - `models/cow-stl-data.js` — the same model embedded as base64 (auto-generated
   from `cow.stl`), loaded at startup so the page works from a `file://` URL.
