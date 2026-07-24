@@ -190,66 +190,6 @@
     .stage.no-webgl .stage-fallback { display: flex; }
     .stage.no-webgl #domeScene { display: none; }
 
-    /* Interaction hint + zoom controls, pinned to the hero. */
-    .hero-foot {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: clamp(18px, 5vh, 44px);
-      z-index: 4;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .hint {
-      font-size: 0.7rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .hint .dot {
-      width: 5px; height: 5px; border-radius: 50%;
-      background: var(--ink); opacity: 0.5;
-    }
-
-    .zoom-controls { display: flex; gap: 8px; }
-    .zoom-controls button {
-      width: 42px; height: 42px;
-      border: 1px solid var(--line);
-      border-radius: 50%;
-      background: transparent;
-      color: var(--ink);
-      font-size: 1.2rem;
-      line-height: 1;
-      cursor: pointer;
-      transition: background 0.18s ease, transform 0.1s ease;
-    }
-    .zoom-controls button:hover { background: var(--paper-2); }
-    .zoom-controls button:active { transform: translateY(1px); }
-
-    .scroll-cue {
-      position: absolute;
-      left: 50%;
-      bottom: clamp(18px, 5vh, 44px);
-      transform: translateX(-50%);
-      z-index: 4;
-      font-size: 0.65rem;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      opacity: 0.75;
-      animation: floaty 2.6s ease-in-out infinite;
-    }
-    @keyframes floaty {
-      0%, 100% { transform: translate(-50%, 0); }
-      50%      { transform: translate(-50%, 6px); }
-    }
-
     /* ---------- Concept sections ---------- */
 
     .sections { padding: clamp(60px, 12vh, 140px) 0 40px; }
@@ -351,7 +291,6 @@
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .scroll-cue { animation: none; }
     }
   </style>
 </head>
@@ -390,15 +329,6 @@
       </div>
     </div>
 
-    <div class="wrap hero-foot">
-      <p class="hint"><span class="dot"></span> Drag to rotate · scroll to zoom</p>
-      <div class="zoom-controls">
-        <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
-        <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
-      </div>
-    </div>
-
-    <div class="scroll-cue">Scroll</div>
   </header>
 
   <!-- ===================== CONCEPT ===================== -->
@@ -793,13 +723,6 @@
         setZoom(zoom * (e.deltaY < 0 ? 1.1 : 0.9));
         scheduleResumeSpin();
       }, { passive: false });
-
-      document.getElementById("zoomIn").addEventListener("click", function () {
-        pauseSpin(); setZoom(zoom * 1.15); scheduleResumeSpin();
-      });
-      document.getElementById("zoomOut").addEventListener("click", function () {
-        pauseSpin(); setZoom(zoom / 1.15); scheduleResumeSpin();
-      });
 
       window.addEventListener("resize", resizeThree);
 
