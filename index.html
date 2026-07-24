@@ -59,18 +59,73 @@
       position: relative;
     }
 
-    .cow {
-      line-height: 1;
-      transition: font-size 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-      will-change: font-size;
+    .cow-scene {
+      width: 240px;
+      height: 220px;
+      perspective: 900px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: none;      /* let us handle drag on touch */
       user-select: none;
     }
 
-    .cow.happy { animation: chew 0.4s ease; }
+    .cow-scene.dragging { cursor: grabbing; }
+    .cow-scene.happy { animation: chew 0.4s ease; }
 
     @keyframes chew {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-14px) rotate(-3deg); }
+      50% { transform: translateY(-14px); }
+    }
+
+    .cow-cube {
+      position: relative;
+      width: 140px;
+      height: 110px;
+      transform-style: preserve-3d;
+      transition: transform 0.2s ease;   /* smooths growth; disabled while dragging */
+    }
+
+    .face {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      border-radius: 8px;
+    }
+
+    /* Front / back show the cow; the four rims are cowhide. */
+    .face.front,
+    .face.back { width: 140px; height: 110px; font-size: 92px; }
+    .face.right,
+    .face.left { width: 80px; height: 110px; }
+    .face.top,
+    .face.bottom { width: 140px; height: 80px; }
+
+    .face.front  { transform: translate(-50%, -50%) translateZ(40px); }
+    .face.back   { transform: translate(-50%, -50%) rotateY(180deg) translateZ(40px); }
+    .face.right  { transform: translate(-50%, -50%) rotateY(90deg) translateZ(70px); }
+    .face.left   { transform: translate(-50%, -50%) rotateY(-90deg) translateZ(70px); }
+    .face.top    { transform: translate(-50%, -50%) rotateX(90deg) translateZ(55px); }
+    .face.bottom { transform: translate(-50%, -50%) rotateX(-90deg) translateZ(55px); }
+
+    .face.skin {
+      background:
+        radial-gradient(circle at 28% 35%, #3a2a20 0 12%, transparent 13%),
+        radial-gradient(circle at 72% 62%, #3a2a20 0 16%, transparent 17%),
+        radial-gradient(circle at 50% 85%, #3a2a20 0 9%, transparent 10%),
+        #fbf7f2;
+      box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .hint {
+      margin: 10px 0 0;
+      font-size: 0.85rem;
+      opacity: 0.7;
     }
 
     .progress-wrap {
@@ -163,8 +218,18 @@
 
   <div class="stage">
     <div class="cow-yard">
-      <div class="cow" id="cow" aria-live="polite">🐄</div>
+      <div class="cow-scene" id="cowScene" title="Drag to rotate">
+        <div class="cow-cube" id="cowCube">
+          <div class="face front cow-emoji">🐄</div>
+          <div class="face back cow-emoji">🐄</div>
+          <div class="face right skin"></div>
+          <div class="face left skin"></div>
+          <div class="face top skin"></div>
+          <div class="face bottom skin"></div>
+        </div>
+      </div>
     </div>
+    <p class="hint">🖱️ Drag the cow to spin it and inspect all sides.</p>
 
     <div class="progress-wrap">
       <div class="progress-bar" id="progressBar"></div>
@@ -199,10 +264,14 @@
       "use strict";
 
       var MAX_POINTS = 30;
-      var MIN_COW_SIZE = 110;  // px, empty
-      var MAX_COW_SIZE = 340;  // px, fully grown
+      var MIN_SCALE = 0.65;  // cube scale when empty
+      var MAX_SCALE = 2.0;   // cube scale when fully grown
 
-      var cowEl = document.getElementById("cow");
+      var sceneEl = document.getElementById("cowScene");
+      var cubeEl = document.getElementById("cowCube");
+      var emojiFaces = Array.prototype.slice.call(
+        cubeEl.querySelectorAll(".cow-emoji")
+      );
       var scoreEl = document.getElementById("score");
       var barEl = document.getElementById("progressBar");
       var messageEl = document.getElementById("message");
@@ -214,19 +283,31 @@
 
       var points = 0;
 
+      // Rotation state (degrees), starting at a slight 3/4 angle so the
+      // object reads as 3D right away.
+      var rotX = -18;
+      var rotY = 28;
+      var growthScale = MIN_SCALE;
+
       var FOOD_LABELS = {
         grass: "grass 🌿",
         soy: "soy 🫘",
         flowers: "flowers 🌸"
       };
 
+      function updateTransform() {
+        cubeEl.style.transform =
+          "rotateX(" + rotX + "deg) rotateY(" + rotY + "deg) " +
+          "scale(" + growthScale + ")";
+      }
+
       function render() {
         var clamped = Math.min(points, MAX_POINTS);
         var ratio = clamped / MAX_POINTS;
 
-        // Grow the cow visually.
-        var size = MIN_COW_SIZE + (MAX_COW_SIZE - MIN_COW_SIZE) * ratio;
-        cowEl.style.fontSize = size + "px";
+        // Grow the cow by scaling the whole 3D cube.
+        growthScale = MIN_SCALE + (MAX_SCALE - MIN_SCALE) * ratio;
+        updateTransform();
 
         // Progress bar + score text.
         barEl.style.width = (ratio * 100) + "%";
@@ -242,19 +323,24 @@
         messageEl.textContent = "Yum! You fed " + FOOD_LABELS[food] +
           " (+" + foodPoints + ").";
 
-        // Chew animation.
-        cowEl.classList.remove("happy");
-        void cowEl.offsetWidth; // restart animation
-        cowEl.classList.add("happy");
+        // Chew bounce on the scene (independent of the cube's rotation).
+        sceneEl.classList.remove("happy");
+        void sceneEl.offsetWidth; // restart animation
+        sceneEl.classList.add("happy");
 
         render();
 
         if (points >= MAX_POINTS) finish();
       }
 
+      function setCowEmoji(emoji) {
+        emojiFaces.forEach(function (face) { face.textContent = emoji; });
+      }
+
       function finish() {
-        cowEl.textContent = "🐮";
-        messageEl.textContent = "🎉 The cow is fully grown! Great job!";
+        setCowEmoji("🐮");
+        messageEl.textContent = "🎉 The cow is fully grown! Great job! " +
+          "Drag it around to admire your work.";
         foodButtons.forEach(function (btn) { btn.disabled = true; });
         resetEl.hidden = false;
         resetEl.focus();
@@ -262,12 +348,54 @@
 
       function reset() {
         points = 0;
-        cowEl.textContent = "🐄";
+        setCowEmoji("🐄");
         messageEl.textContent = "Pick a food to start feeding!";
         foodButtons.forEach(function (btn) { btn.disabled = false; });
         resetEl.hidden = true;
         render();
       }
+
+      // --- Drag to rotate (mouse + touch via Pointer Events) ---
+      var dragging = false;
+      var lastX = 0;
+      var lastY = 0;
+
+      sceneEl.addEventListener("pointerdown", function (e) {
+        dragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        sceneEl.classList.add("dragging");
+        cubeEl.style.transition = "none"; // 1:1 responsiveness while dragging
+        if (sceneEl.setPointerCapture) {
+          try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        e.preventDefault();
+      });
+
+      sceneEl.addEventListener("pointermove", function (e) {
+        if (!dragging) return;
+        var dx = e.clientX - lastX;
+        var dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        rotY += dx * 0.6;
+        rotX -= dy * 0.6;
+        updateTransform();
+      });
+
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        sceneEl.classList.remove("dragging");
+        cubeEl.style.transition = ""; // restore smoothing for growth
+        if (sceneEl.releasePointerCapture && e.pointerId != null) {
+          try { sceneEl.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      }
+
+      sceneEl.addEventListener("pointerup", endDrag);
+      sceneEl.addEventListener("pointercancel", endDrag);
 
       foodButtons.forEach(function (btn) {
         btn.addEventListener("click", function () {
