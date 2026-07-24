@@ -1,65 +1,48 @@
 # The Dome — portfolio site
 
-`index.html` is the front page: a standalone, editorial portfolio for **The
-Dome**. Open it in any browser (no build step or server needed) — the CAD model
-is embedded in the page, so it loads even from a `file://` URL.
+An editorial, single-page portfolio for **The Dome**, built around an
+interactive 3D view of the product's CAD model. No build step or server needed —
+just open it in a browser.
 
-- The **3D model** (`models/dome.stl`) sits at the centre of the hero and:
-  - **Drag** to rotate it and inspect every angle.
-  - **Scroll** (or pinch, or use the on-screen +/− buttons) to zoom.
-  - It **auto-spins** gently while idle and pauses the moment you interact.
-- Below the hero are short **concept sections** (Concept · Form · Craft · Specs)
-  with placeholder copy — replace the text with the real story of The Dome.
-- Rendered with the same vendored [Three.js](https://threejs.org/) (r128) and
-  `STLLoader` in `vendor/`, so it needs no network access.
+## Run it
 
-Model files:
+- **`index.html`** — the site. Open it directly (double-click) or serve the
+  folder. It loads `vendor/` and `models/` alongside it. The model is embedded
+  as base64, so it renders even from a `file://` URL.
+- **`dome-standalone.html`** — the exact same page with Three.js, the STL
+  loader, the model, and the fonts all inlined into one file. Fully
+  self-contained — open it anywhere with nothing else needed.
 
-- `models/dome.stl` — the source CAD model (binary STL).
-- `models/dome-stl-data.js` — the same model embedded as base64 (auto-generated
-  from `dome.stl`), loaded at startup so the page works from a `file://` URL.
+## The 3D model
 
----
+The Dome (`models/dome.stl`) sits at the centre of the hero. You can:
 
-# Grow the Cow 🐄
+- **Drag** to rotate it; it **auto-spins** gently while idle and pauses when you
+  interact.
+- **Scroll the page** — the model and its cast shadow shrink, and the model
+  gradually **tilts up to 90°** to reveal its top. (There is no separate zoom;
+  scrolling the page is never captured by the model.)
 
-A tiny playable browser game. Feed a cow different foods to help it grow until
-it's fully grown at **30 points**.
+## Content
 
-## How to play
+Below the hero are short editorial sections — **Concept · Form · Craft · Specs** —
+with **placeholder copy**. Replace the text with the real story of The Dome; the
+spec figures are the model's actual bounding-box dimensions.
 
-1. Open `cow.html` in any web browser — just double-click it, no build step
-   or server needed. (The 3D model is embedded in the page, so it loads even
-   from a `file://` URL.)
-2. Click a food button to feed the cow. Each food adds growth points:
-   - 🌿 **Grass** — 3 points
-   - 🫘 **Soy** — 2 points
-   - 🌸 **Flowers** — 1 point
-3. Higher-point foods grow the cow more. The cow visibly grows and a progress
-   bar fills as you feed it.
-4. When the cow reaches **30 points** it's fully grown — a **Play again**
-   button appears so you can reset and start over.
+## Type
 
-## The 3D cow
-
-The cow is a real 3D model (a Highland cow, `models/cow.stl`) rendered with
-WebGL. It loads automatically when the page opens, and you can:
-
-- **Drag** to rotate it and inspect all sides.
-- **Zoom** with the scroll wheel, a two-finger pinch, or the on-screen +/−
-  buttons.
-- **Grow** it by feeding — it scales up as its growth points increase.
-- **Mute/unmute** the sound effects with the 🔊 button.
-
-If the model ever fails to load, the game falls back to a simple cow drawn with
-CSS 3D transforms so it stays playable. Everything runs locally in the
-browser — nothing is sent anywhere.
+- **Headings** — Mikela if it's installed locally, otherwise the embedded
+  [Fraunces](https://fonts.google.com/specimen/Fraunces) (SIL OFL). Mikela is a
+  commercial face and isn't bundled; drop its font file in and it takes over.
+- **Body** — [Marcellus](https://fonts.google.com/specimen/Marcellus) (SIL OFL),
+  embedded as base64 so it renders offline.
 
 ## Files
 
-- `cow.html` — the game (HTML, CSS, and JavaScript in one file).
-- `models/cow.stl` — the built-in 3D cow model (source asset).
-- `models/cow-stl-data.js` — the same model embedded as base64 (auto-generated
-  from `cow.stl`), loaded at startup so the page works from a `file://` URL.
+- `index.html` — the portfolio page (HTML, CSS, and JavaScript in one file).
+- `dome-standalone.html` — single self-contained build with everything inlined.
+- `models/dome.stl` — the source CAD model (binary STL).
+- `models/dome-stl-data.js` — the same model embedded as base64, so the page
+  works from a `file://` URL.
 - `vendor/` — [Three.js](https://threejs.org/) (r128) and its `STLLoader`,
   vendored locally so the model renders without any network access.
