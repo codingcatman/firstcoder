@@ -40,7 +40,7 @@
     }
 
     .stage {
-      width: min(520px, 100%);
+      width: min(680px, 100%);
       background: var(--panel);
       border-radius: 24px;
       padding: 24px;
@@ -49,9 +49,9 @@
     }
 
     .cow-yard {
-      height: 220px;
+      height: 420px;
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
       background: linear-gradient(180deg, #eaf7ff 0%, #eaf7ff 60%, #d7f0cd 60%, #d7f0cd 100%);
       border-radius: 18px;
@@ -61,7 +61,6 @@
 
     .cow {
       line-height: 1;
-      margin-bottom: 12px;
       transition: font-size 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
       will-change: font-size;
       user-select: none;
@@ -200,8 +199,8 @@
       "use strict";
 
       var MAX_POINTS = 30;
-      var MIN_COW_SIZE = 48;   // px, empty
-      var MAX_COW_SIZE = 150;  // px, fully grown
+      var MIN_COW_SIZE = 110;  // px, empty
+      var MAX_COW_SIZE = 340;  // px, fully grown
 
       var cowEl = document.getElementById("cow");
       var scoreEl = document.getElementById("score");
