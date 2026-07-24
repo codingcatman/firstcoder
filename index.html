@@ -105,9 +105,11 @@
       opacity: 0.85;
       display: inline-block;
       transform-origin: center;
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      will-change: transform;
+      transition: opacity 0.35s ease,
+                  transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .section-nav a:hover { opacity: 1; transform: scale(1.15); }
+    .section-nav a:hover { opacity: 1; transform: scale(1.07); }
 
     /* ---------- Hero ---------- */
 
