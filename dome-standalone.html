@@ -153,9 +153,9 @@
     .contact-shadow {
       position: absolute;
       left: 50%;
-      top: 74%;
-      width: 42%;
-      height: 7%;
+      top: 84%;          /* fixed vertical position; size is set in JS by zoom */
+      width: 50%;
+      height: 8%;
       transform: translate(-50%, -50%);
       background: radial-gradient(ellipse at center,
                   rgba(20, 17, 12, 0.28) 0%,
@@ -841,7 +841,6 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       var BORDER_MARGIN = 0.96;  // keep a small gap between model and border
       var HOME_FRAC = 0.8;       // initial zoom as a fraction of the max
       var modelEffRadius = 1;    // worst-case projected radius (world units at zoom 1)
-      var shadowRefZoom = 0;     // zoom the contact shadow's base size is calibrated to
 
       var stageEl   = document.getElementById("stage");
       var sceneEl   = document.getElementById("domeScene");
@@ -995,7 +994,6 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
 
         computeZoomLimits();
         zoom = HOME_FRAC * MAX_ZOOM;   // frame the model on first load
-        shadowRefZoom = zoom;          // calibrate the shadow to this size
         updateShadow();
         resizeThree();
         applyTransform();
@@ -1058,19 +1056,15 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       // Keep the contact shadow locked to the model as it zooms. The object's
       // apparent size — and how far its base sits below the centre — both scale
       // with zoom, so the shadow scales AND drops/rises by zoom / its reference.
-      // % below centre the shadow sits at ref zoom. The base is ~24% down, so
-      // the extra drop reads as a gap between object and cast shadow — and it
-      // scales with zoom because it's multiplied by the same factor below.
-      var SHADOW_BASE_OFFSET = 37;
+      // The shadow keeps a fixed vertical position (set in CSS) and only
+      // changes size: full size when the model is at its biggest (max zoom),
+      // shrinking as the model is zoomed out.
       function updateShadow() {
         if (!shadowEl) return;
-        var ref = shadowRefZoom || zoom || 1;
-        var s = zoom / ref;
-        shadowEl.style.top = (50 + SHADOW_BASE_OFFSET * s) + "%";
+        var s = MAX_ZOOM > 0 ? (zoom / MAX_ZOOM) : 1;
         shadowEl.style.transform = "translate(-50%, -50%) scale(" + s + ")";
-        // Ease opacity so it stays subtle when large and reads when small.
         shadowEl.style.opacity =
-          String(Math.max(0.25, Math.min(0.72, 0.6 - (s - 1) * 0.18)));
+          String(Math.max(0.25, Math.min(0.6, 0.32 + s * 0.28)));
       }
 
       sceneEl.addEventListener("pointerdown", function (e) {
