@@ -79,48 +79,60 @@
       50% { transform: translateY(-14px); }
     }
 
+    /* Rotating + scaling group that holds the whole 3D cow model. */
     .cow-cube {
       position: relative;
-      width: 140px;
-      height: 110px;
+      width: 1px;
+      height: 1px;
       transform-style: preserve-3d;
       transition: transform 0.2s ease;   /* smooths growth; disabled while dragging */
     }
 
-    .face {
+    .cow-cube.grown {
+      filter: drop-shadow(0 0 12px rgba(255, 214, 71, 0.85));
+    }
+
+    /* A cuboid part of the cow. Its faces are generated in JS. */
+    .box {
       position: absolute;
       top: 50%;
       left: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-      border-radius: 8px;
+      transform-style: preserve-3d;
     }
 
-    /* Front / back show the cow; the four rims are cowhide. */
-    .face.front,
-    .face.back { width: 140px; height: 110px; font-size: 92px; }
-    .face.right,
-    .face.left { width: 80px; height: 110px; }
-    .face.top,
-    .face.bottom { width: 140px; height: 80px; }
-
-    .face.front  { transform: translate(-50%, -50%) translateZ(40px); }
-    .face.back   { transform: translate(-50%, -50%) rotateY(180deg) translateZ(40px); }
-    .face.right  { transform: translate(-50%, -50%) rotateY(90deg) translateZ(70px); }
-    .face.left   { transform: translate(-50%, -50%) rotateY(-90deg) translateZ(70px); }
-    .face.top    { transform: translate(-50%, -50%) rotateX(90deg) translateZ(55px); }
-    .face.bottom { transform: translate(-50%, -50%) rotateX(-90deg) translateZ(55px); }
-
-    .face.skin {
-      background:
-        radial-gradient(circle at 28% 35%, #3a2a20 0 12%, transparent 13%),
-        radial-gradient(circle at 72% 62%, #3a2a20 0 16%, transparent 17%),
-        radial-gradient(circle at 50% 85%, #3a2a20 0 9%, transparent 10%),
-        #fbf7f2;
-      box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.06);
+    /* A single face of a part. Size + placement transform set inline in JS. */
+    .bf {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      background: var(--c, #fdfdfd);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
     }
+
+    /* Simple directional shading so the model reads as solid 3D. */
+    .bf.top    { filter: brightness(1.15); }
+    .bf.bottom { filter: brightness(0.55); }
+    .bf.right  { filter: brightness(0.9); }
+    .bf.left   { filter: brightness(0.78); }
+
+    /* Black-and-white cow spots on the body. */
+    .box.body .bf {
+      background-color: #fdfdfd;
+      background-image:
+        radial-gradient(circle at 24% 30%, #242424 0 17%, transparent 18%),
+        radial-gradient(circle at 70% 58%, #242424 0 21%, transparent 22%),
+        radial-gradient(circle at 46% 82%, #242424 0 11%, transparent 12%);
+    }
+
+    .box.head .bf,
+    .box.leg .bf    { --c: #f4f4f4; }
+    .box.tail .bf   { --c: #f0f0f0; }
+    .box.snout .bf  { --c: #f3aebd; }
+    .box.ear .bf    { --c: #f6d7de; }
+    .box.horn .bf   { --c: #e9dcc3; }
+    .box.hoof .bf,
+    .box.eye .bf,
+    .box.tailtip .bf { --c: #1c1c1c; }
 
     .hint {
       margin: 10px 0 0;
@@ -219,14 +231,7 @@
   <div class="stage">
     <div class="cow-yard">
       <div class="cow-scene" id="cowScene" title="Drag to rotate">
-        <div class="cow-cube" id="cowCube">
-          <div class="face front cow-emoji">🐄</div>
-          <div class="face back cow-emoji">🐄</div>
-          <div class="face right skin"></div>
-          <div class="face left skin"></div>
-          <div class="face top skin"></div>
-          <div class="face bottom skin"></div>
-        </div>
+        <div class="cow-cube" id="cowCube"></div>
       </div>
     </div>
     <p class="hint">🖱️ Drag the cow to spin it and inspect all sides.</p>
@@ -264,14 +269,11 @@
       "use strict";
 
       var MAX_POINTS = 30;
-      var MIN_SCALE = 0.65;  // cube scale when empty
-      var MAX_SCALE = 2.0;   // cube scale when fully grown
+      var MIN_SCALE = 0.7;   // model scale when empty
+      var MAX_SCALE = 1.7;   // model scale when fully grown
 
       var sceneEl = document.getElementById("cowScene");
       var cubeEl = document.getElementById("cowCube");
-      var emojiFaces = Array.prototype.slice.call(
-        cubeEl.querySelectorAll(".cow-emoji")
-      );
       var scoreEl = document.getElementById("score");
       var barEl = document.getElementById("progressBar");
       var messageEl = document.getElementById("message");
@@ -283,10 +285,10 @@
 
       var points = 0;
 
-      // Rotation state (degrees), starting at a slight 3/4 angle so the
-      // object reads as 3D right away.
-      var rotX = -18;
-      var rotY = 28;
+      // Rotation state (degrees), starting at a 3/4 angle so the model
+      // reads as 3D right away.
+      var rotX = -14;
+      var rotY = -34;
       var growthScale = MIN_SCALE;
 
       var FOOD_LABELS = {
@@ -294,6 +296,72 @@
         soy: "soy 🫘",
         flowers: "flowers 🌸"
       };
+
+      // --- Build the 3D cow model out of shaded cuboids ---
+
+      // Create one cuboid ("part") of size w x h x d, positioned at
+      // (x, y, z) with y pointing up. Faces are generated and shaded.
+      function makeBox(w, h, d, opts) {
+        opts = opts || {};
+        var box = document.createElement("div");
+        box.className = "box" + (opts.cls ? " " + opts.cls : "");
+        box.style.transform =
+          "translate3d(" + (opts.x || 0) + "px," +
+          (-(opts.y || 0)) + "px," + (opts.z || 0) + "px)" +
+          (opts.rx ? " rotateX(" + opts.rx + "deg)" : "") +
+          (opts.ry ? " rotateY(" + opts.ry + "deg)" : "") +
+          (opts.rz ? " rotateZ(" + opts.rz + "deg)" : "");
+
+        var faces = [
+          ["front",  w, h, "translateZ(" + (d / 2) + "px)"],
+          ["back",   w, h, "rotateY(180deg) translateZ(" + (d / 2) + "px)"],
+          ["right",  d, h, "rotateY(90deg) translateZ(" + (w / 2) + "px)"],
+          ["left",   d, h, "rotateY(-90deg) translateZ(" + (w / 2) + "px)"],
+          ["top",    w, d, "rotateX(90deg) translateZ(" + (h / 2) + "px)"],
+          ["bottom", w, d, "rotateX(-90deg) translateZ(" + (h / 2) + "px)"]
+        ];
+
+        faces.forEach(function (f) {
+          var el = document.createElement("div");
+          el.className = "bf " + f[0];
+          el.style.width = f[1] + "px";
+          el.style.height = f[2] + "px";
+          el.style.transform = "translate(-50%, -50%) " + f[3];
+          box.appendChild(el);
+        });
+
+        return box;
+      }
+
+      function buildCow() {
+        var parts = [
+          // torso
+          makeBox(110, 55, 62, { cls: "body", x: 0, y: 0, z: 0 }),
+          // head + face details (cow faces toward +x)
+          makeBox(46, 46, 46, { cls: "head",  x: 66, y: 10, z: 0 }),
+          makeBox(26, 24, 34, { cls: "snout", x: 92, y: 2,  z: 0 }),
+          makeBox(7,  9,  6,  { cls: "eye",   x: 88, y: 18, z: 14 }),
+          makeBox(7,  9,  6,  { cls: "eye",   x: 88, y: 18, z: -14 }),
+          makeBox(10, 16, 24, { cls: "ear",   x: 58, y: 24, z: 32, rz: 18 }),
+          makeBox(10, 16, 24, { cls: "ear",   x: 58, y: 24, z: -32, rz: 18 }),
+          makeBox(7,  16, 7,  { cls: "horn",  x: 56, y: 38, z: 12 }),
+          makeBox(7,  16, 7,  { cls: "horn",  x: 56, y: 38, z: -12 }),
+          // legs
+          makeBox(18, 46, 18, { cls: "leg", x: 34,  y: -50, z: 20 }),
+          makeBox(18, 46, 18, { cls: "leg", x: 34,  y: -50, z: -20 }),
+          makeBox(18, 46, 18, { cls: "leg", x: -34, y: -50, z: 20 }),
+          makeBox(18, 46, 18, { cls: "leg", x: -34, y: -50, z: -20 }),
+          // hooves
+          makeBox(19, 9, 19, { cls: "hoof", x: 34,  y: -74, z: 20 }),
+          makeBox(19, 9, 19, { cls: "hoof", x: 34,  y: -74, z: -20 }),
+          makeBox(19, 9, 19, { cls: "hoof", x: -34, y: -74, z: 20 }),
+          makeBox(19, 9, 19, { cls: "hoof", x: -34, y: -74, z: -20 }),
+          // tail
+          makeBox(6, 46, 6, { cls: "tail",    x: -58, y: -6,  z: 0, rz: -14 }),
+          makeBox(10, 13, 10, { cls: "tailtip", x: -64, y: -30, z: 0 })
+        ];
+        parts.forEach(function (p) { cubeEl.appendChild(p); });
+      }
 
       function updateTransform() {
         cubeEl.style.transform =
@@ -333,12 +401,8 @@
         if (points >= MAX_POINTS) finish();
       }
 
-      function setCowEmoji(emoji) {
-        emojiFaces.forEach(function (face) { face.textContent = emoji; });
-      }
-
       function finish() {
-        setCowEmoji("🐮");
+        cubeEl.classList.add("grown");
         messageEl.textContent = "🎉 The cow is fully grown! Great job! " +
           "Drag it around to admire your work.";
         foodButtons.forEach(function (btn) { btn.disabled = true; });
@@ -348,7 +412,7 @@
 
       function reset() {
         points = 0;
-        setCowEmoji("🐄");
+        cubeEl.classList.remove("grown");
         messageEl.textContent = "Pick a food to start feeding!";
         foodButtons.forEach(function (btn) { btn.disabled = false; });
         resetEl.hidden = true;
@@ -407,6 +471,7 @@
       resetEl.addEventListener("click", reset);
 
       // Initial state.
+      buildCow();
       render();
     })();
   </script>
