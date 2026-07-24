@@ -171,7 +171,7 @@
       position: absolute;
       inset: 0;
       cursor: grab;
-      touch-action: none;
+      touch-action: pan-y;   /* let the page scroll vertically over the model */
       user-select: none;
       z-index: 2;
     }
@@ -329,7 +329,7 @@
     <div class="stage" id="stage" aria-hidden="false">
       <div class="stage-inner">
         <div class="contact-shadow" id="contactShadow"></div>
-        <div id="domeScene" title="Drag to rotate · scroll to zoom">
+        <div id="domeScene" title="Drag to rotate">
           <canvas id="domeCanvas"></canvas>
         </div>
       </div>
@@ -382,7 +382,7 @@
           curvature, so the material can be thin and the presence can be quiet.
         </p>
         <p>
-          Zoom in and the proportion holds at every scale: the same clean
+          Look closer and the proportion holds at every scale: the same clean
           arc whether it sits in your hand or across a room.
         </p>
       </div>
@@ -839,7 +839,6 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       var MIN_ZOOM = 0.45;
       var MAX_ZOOM = 1.6;
       var BORDER_MARGIN = 0.96;  // keep a small gap between model and border
-      var HOME_FRAC = 0.8;       // initial zoom as a fraction of the max
       var modelEffRadius = 1;    // worst-case projected radius (world units at zoom 1)
 
       var stageEl   = document.getElementById("stage");
@@ -993,9 +992,9 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
         t.group.add(t.mesh);
 
         computeZoomLimits();
-        zoom = HOME_FRAC * MAX_ZOOM;   // frame the model on first load
-        updateShadow();
+        zoom = MAX_ZOOM;   // biggest at the top of the page
         resizeThree();
+        scrollZoom();      // sync size to the current scroll position
         applyTransform();
         renderThree();
       }
@@ -1035,9 +1034,8 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
           });
       }
 
-      // ---------- Interaction: drag to rotate, wheel/pinch/buttons to zoom ----------
+      // ---------- Interaction: drag to rotate (zoom is driven by page scroll) ----------
       var pointers = new Map();
-      var lastPinch = null;
 
       function pauseSpin() {
         autoSpin = false;
@@ -1048,9 +1046,17 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
         idleTimer = setTimeout(function () { autoSpin = true; }, 3500);
       }
 
-      function setZoom(z) {
-        zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
+      // Page scroll drives the model + shadow size: biggest at the top of the
+      // page, shrinking to the minimum as you scroll down through the hero.
+      var heroEl = document.querySelector(".hero");
+      function scrollZoom() {
+        var range = (heroEl ? heroEl.offsetHeight : window.innerHeight) * 0.85;
+        var t = range > 0
+          ? Math.min(1, Math.max(0, window.pageYOffset / range)) : 0;
+        zoom = MAX_ZOOM - (MAX_ZOOM - MIN_ZOOM) * t;
+        applyTransform();
         updateShadow();
+        renderThree();
       }
 
       // Keep the contact shadow locked to the model as it zooms. The object's
@@ -1069,36 +1075,28 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
 
       sceneEl.addEventListener("pointerdown", function (e) {
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 2) lastPinch = null;
         pauseSpin();
         sceneEl.classList.add("dragging");
-        if (sceneEl.setPointerCapture) {
-          try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
+        // Only capture the mouse; on touch we leave the browser free to scroll.
+        if (e.pointerType === "mouse") {
+          if (sceneEl.setPointerCapture) {
+            try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
+          }
+          e.preventDefault();
         }
-        e.preventDefault();
       });
 
       sceneEl.addEventListener("pointermove", function (e) {
         var p = pointers.get(e.pointerId);
         if (!p) return;
-        var prevX = p.x, prevY = p.y;
+        rotY += (e.clientX - p.x) * 0.5;
+        rotX += (e.clientY - p.y) * 0.5;
+        rotX = Math.max(-85, Math.min(85, rotX));  // avoid flipping over
         p.x = e.clientX; p.y = e.clientY;
-
-        if (pointers.size >= 2) {
-          var pts = Array.from(pointers.values());
-          var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          if (lastPinch != null && lastPinch > 0) setZoom(zoom * (dist / lastPinch));
-          lastPinch = dist;
-        } else {
-          rotY += (p.x - prevX) * 0.5;
-          rotX += (p.y - prevY) * 0.5;
-          rotX = Math.max(-85, Math.min(85, rotX));  // avoid flipping over
-        }
       });
 
       function releasePointer(e) {
         pointers.delete(e.pointerId);
-        if (pointers.size < 2) lastPinch = null;
         if (pointers.size === 0) {
           sceneEl.classList.remove("dragging");
           scheduleResumeSpin();
@@ -1107,14 +1105,8 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       sceneEl.addEventListener("pointerup", releasePointer);
       sceneEl.addEventListener("pointercancel", releasePointer);
 
-      sceneEl.addEventListener("wheel", function (e) {
-        e.preventDefault();
-        pauseSpin();
-        setZoom(zoom * (e.deltaY < 0 ? 1.1 : 0.9));
-        scheduleResumeSpin();
-      }, { passive: false });
-
-      window.addEventListener("resize", resizeThree);
+      window.addEventListener("resize", function () { resizeThree(); scrollZoom(); });
+      window.addEventListener("scroll", scrollZoom, { passive: true });
 
       loadModel();
     })();
