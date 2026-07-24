@@ -15,23 +15,24 @@ it's fully grown at **30 points**.
 4. When the cow reaches **30 points** it's fully grown — a **Play again**
    button appears so you can reset and start over.
 
-## Use your own cow model
+## The 3D cow
 
-The cow is a 3D model you can rotate (drag), zoom (scroll / pinch / the +/−
-buttons), and grow by feeding. By default it's a built-in model drawn with CSS
-3D transforms, but you can **swap in your own CAD model**:
+The cow is a real 3D model (a Highland cow, `models/cow.stl`) rendered with
+WebGL. It loads automatically when the page opens, and you can:
 
-1. Click **Upload cow model (.stl)** and pick an `.stl` file (a common CAD
-   export format, e.g. from Fusion 360, SolidWorks, or Blender).
-2. Your model is rendered in a WebGL view and takes over all the controls —
-   drag to rotate, zoom, and feeding still grows it.
-3. Click **Use default cow** to switch back to the built-in cow.
+- **Drag** to rotate it and inspect all sides.
+- **Zoom** with the scroll wheel, a two-finger pinch, or the on-screen +/−
+  buttons.
+- **Grow** it by feeding — it scales up as its growth points increase.
+- **Mute/unmute** the sound effects with the 🔊 button.
 
-Everything runs locally in your browser — the uploaded file is never sent
-anywhere.
+If the model ever fails to load, the game falls back to a simple cow drawn with
+CSS 3D transforms so it stays playable. Everything runs locally in the
+browser — nothing is sent anywhere.
 
 ## Files
 
 - `index.html` — the game (HTML, CSS, and JavaScript in one file).
+- `models/cow.stl` — the built-in 3D cow model, loaded at startup.
 - `vendor/` — [Three.js](https://threejs.org/) (r128) and its `STLLoader`,
-  vendored locally so uploaded STL models render without any network access.
+  vendored locally so the model renders without any network access.

@@ -142,38 +142,6 @@
     }
     #cowCanvas[hidden] { display: none; }
 
-    .model-controls {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-top: 4px;
-    }
-
-    .upload-btn,
-    .model-controls button {
-      display: inline-block;
-      border: none;
-      border-radius: 10px;
-      padding: 9px 16px;
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: bold;
-      color: #fff;
-      background: #3d6fb4;
-      cursor: pointer;
-      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
-    }
-
-    .model-controls button {
-      background: #7a8a99;
-    }
-
-    .upload-btn:hover,
-    .model-controls button:hover { filter: brightness(1.06); }
-    .model-controls button[hidden] { display: none; }
-
     .model-status {
       min-height: 1.1em;
       margin: 6px 0 0;
@@ -319,14 +287,6 @@
       <button type="button" id="muteBtn" class="mute-btn" aria-label="Mute sound">🔊</button>
     </div>
     <p class="hint">🖱️ Drag to spin the cow · scroll, pinch, or use +/− to zoom.</p>
-
-    <div class="model-controls">
-      <label class="upload-btn">
-        Upload cow model (.stl)
-        <input type="file" id="modelFile" accept=".stl,.STL,model/stl" hidden />
-      </label>
-      <button type="button" id="revertModel" hidden>Use default cow</button>
-    </div>
     <p class="model-status" id="modelStatus"></p>
 
     <div class="progress-wrap">
@@ -368,10 +328,10 @@
       var messageEl = document.getElementById("message");
       var foodsEl = document.getElementById("foods");
       var resetEl = document.getElementById("reset");
-      var modelFileEl = document.getElementById("modelFile");
-      var revertModelEl = document.getElementById("revertModel");
       var modelStatusEl = document.getElementById("modelStatus");
       var muteBtnEl = document.getElementById("muteBtn");
+
+      var DEFAULT_MODEL_URL = "models/cow.stl";
       var foodButtons = Array.prototype.slice.call(
         foodsEl.querySelectorAll("button.food")
       );
@@ -714,7 +674,6 @@
         modelActive = on;
         canvasEl.hidden = !on;
         cubeEl.style.display = on ? "none" : "";
-        revertModelEl.hidden = !on;
         updateTransform();
       }
 
@@ -722,8 +681,9 @@
         try {
           var t = initThree();
           var geometry = new THREE.STLLoader().parse(arrayBuffer);
-          geometry.center();               // recentre on the origin
-          geometry.computeVertexNormals(); // shade nicely
+          geometry.center();                 // recentre on the origin
+          geometry.rotateX(-Math.PI / 2);    // CAD Z-up -> Three.js Y-up
+          geometry.computeVertexNormals();   // shade nicely
           geometry.computeBoundingSphere();
 
           var radius = (geometry.boundingSphere &&
@@ -737,44 +697,38 @@
           }
 
           var material = new THREE.MeshStandardMaterial({
-            color: 0xf2f2f2, roughness: 0.65, metalness: 0.0, flatShading: true
+            color: 0xa9702f, roughness: 0.72, metalness: 0.0, flatShading: false
           });
           t.mesh = new THREE.Mesh(geometry, material);
           t.group.add(t.mesh);
 
           setModelActive(true);
           resizeThree();
-          modelStatusEl.textContent = "Showing your model: " + name;
+          modelStatusEl.textContent = "";
+          return true;
         } catch (err) {
           if (window.console) console.error(err);
-          modelStatusEl.textContent =
-            "Sorry — couldn't read that STL file. Please try another.";
+          modelStatusEl.textContent = "";
+          return false;
         }
       }
 
-      modelFileEl.addEventListener("change", function () {
-        var file = this.files && this.files[0];
-        this.value = ""; // allow re-selecting the same file later
-        if (!file) return;
-
-        if (typeof THREE === "undefined" || !THREE.STLLoader) {
-          modelStatusEl.textContent = "The 3D viewer failed to load.";
-          return;
-        }
-
-        modelStatusEl.textContent = "Loading " + file.name + "…";
-        var reader = new FileReader();
-        reader.onload = function (e) { loadSTL(e.target.result, file.name); };
-        reader.onerror = function () {
-          modelStatusEl.textContent = "Could not read that file.";
-        };
-        reader.readAsArrayBuffer(file);
-      });
-
-      revertModelEl.addEventListener("click", function () {
-        setModelActive(false);
-        modelStatusEl.textContent = "Back to the default cow.";
-      });
+      // Load the built-in cow model (baked into the repo) on startup.
+      // If anything fails, the CSS fallback cow stays on screen.
+      function loadDefaultModel() {
+        if (typeof THREE === "undefined" || !THREE.STLLoader) return;
+        modelStatusEl.textContent = "Loading cow…";
+        fetch(DEFAULT_MODEL_URL)
+          .then(function (res) {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.arrayBuffer();
+          })
+          .then(function (buf) { loadSTL(buf, "cow"); })
+          .catch(function (err) {
+            if (window.console) console.error(err);
+            modelStatusEl.textContent = ""; // keep the fallback cow silently
+          });
+      }
 
       window.addEventListener("resize", resizeThree);
 
@@ -795,8 +749,9 @@
       });
 
       // Initial state.
-      buildCow();
+      buildCow();       // CSS fallback cow (shown until/unless the STL loads)
       render();
+      loadDefaultModel();
     })();
   </script>
 </body>
