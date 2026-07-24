@@ -597,8 +597,8 @@
           lastPinch = dist;
         } else {
           // One finger / mouse: rotate.
-          rotY -= (p.x - prevX) * 0.6;
-          rotX -= (p.y - prevY) * 0.6;
+          rotY += (p.x - prevX) * 0.6;
+          rotX += (p.y - prevY) * 0.6;
           updateTransform();
         }
       });
