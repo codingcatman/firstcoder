@@ -729,12 +729,15 @@
         updateShadow();
       }
 
-      // Keep the contact shadow sized with the model: the object's apparent
-      // size scales with zoom, so the shadow scales by zoom / its reference.
+      // Keep the contact shadow locked to the model as it zooms. The object's
+      // apparent size — and how far its base sits below the centre — both scale
+      // with zoom, so the shadow scales AND drops/rises by zoom / its reference.
+      var SHADOW_BASE_OFFSET = 24;   // % below centre the base sits at ref zoom
       function updateShadow() {
         if (!shadowEl) return;
         var ref = shadowRefZoom || zoom || 1;
         var s = zoom / ref;
+        shadowEl.style.top = (50 + SHADOW_BASE_OFFSET * s) + "%";
         shadowEl.style.transform = "translate(-50%, -50%) scale(" + s + ")";
         // Ease opacity so it stays subtle when large and reads when small.
         shadowEl.style.opacity =
