@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grow the Cow 🐄</title>
+  <style>
+    :root {
+      --sky: #bfe3ff;
+      --grass: #7cc36b;
+      --panel: #ffffff;
+      --ink: #2c3e2f;
+      --accent: #4a8c3f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--sky) 0%, var(--sky) 55%, var(--grass) 55%, var(--grass) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    h1 {
+      margin: 8px 0 4px;
+      font-size: 2rem;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      opacity: 0.85;
+      font-size: 0.95rem;
+    }
+
+    .stage {
+      width: min(520px, 100%);
+      background: var(--panel);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+
+    .cow-yard {
+      height: 220px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      background: linear-gradient(180deg, #eaf7ff 0%, #eaf7ff 60%, #d7f0cd 60%, #d7f0cd 100%);
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cow {
+      line-height: 1;
+      margin-bottom: 12px;
+      transition: font-size 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      will-change: font-size;
+      user-select: none;
+    }
+
+    .cow.happy { animation: chew 0.4s ease; }
+
+    @keyframes chew {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-14px) rotate(-3deg); }
+    }
+
+    .progress-wrap {
+      margin: 20px 0 4px;
+      background: #e8ede8;
+      border-radius: 999px;
+      height: 18px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #8fd07a, var(--accent));
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .score {
+      font-size: 1.05rem;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .message {
+      min-height: 1.4em;
+      margin: 10px 0 4px;
+      font-size: 0.95rem;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .foods {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button.food {
+      flex: 1 1 130px;
+      max-width: 160px;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    button.food .emoji { display: block; font-size: 1.6rem; margin-bottom: 4px; }
+    button.food .pts { display: block; font-size: 0.8rem; opacity: 0.9; font-weight: normal; }
+
+    button.food:hover:not(:disabled) { transform: translateY(-2px); }
+    button.food:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
+    button.food:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .food.grass { background: #5aa84b; }
+    .food.soy { background: #c9a227; }
+    .food.flowers { background: #d76ba3; }
+
+    .reset {
+      margin-top: 18px;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 28px;
+      font-size: 1.05rem;
+      font-family: inherit;
+      font-weight: bold;
+      color: #fff;
+      background: #3d6fb4;
+      cursor: pointer;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
+      transition: transform 0.1s ease;
+    }
+
+    .reset:hover { transform: translateY(-2px); }
+    .reset:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
+    .reset[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Grow the Cow 🐄</h1>
+  <p class="subtitle">Feed the cow to help it grow. Reach 30 points to fully grow it!</p>
+
+  <div class="stage">
+    <div class="cow-yard">
+      <div class="cow" id="cow" aria-live="polite">🐄</div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="score" id="score">Growth: 0 / 30 points</div>
+
+    <p class="message" id="message">Pick a food to start feeding!</p>
+
+    <div class="foods" id="foods">
+      <button class="food grass" data-food="grass" data-points="3">
+        <span class="emoji">🌿</span>
+        Grass
+        <span class="pts">+3 points</span>
+      </button>
+      <button class="food soy" data-food="soy" data-points="2">
+        <span class="emoji">🫘</span>
+        Soy
+        <span class="pts">+2 points</span>
+      </button>
+      <button class="food flowers" data-food="flowers" data-points="1">
+        <span class="emoji">🌸</span>
+        Flowers
+        <span class="pts">+1 point</span>
+      </button>
+    </div>
+
+    <button class="reset" id="reset" hidden>Play again 🔄</button>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var MAX_POINTS = 30;
+      var MIN_COW_SIZE = 48;   // px, empty
+      var MAX_COW_SIZE = 150;  // px, fully grown
+
+      var cowEl = document.getElementById("cow");
+      var scoreEl = document.getElementById("score");
+      var barEl = document.getElementById("progressBar");
+      var messageEl = document.getElementById("message");
+      var foodsEl = document.getElementById("foods");
+      var resetEl = document.getElementById("reset");
+      var foodButtons = Array.prototype.slice.call(
+        foodsEl.querySelectorAll("button.food")
+      );
+
+      var points = 0;
+
+      var FOOD_LABELS = {
+        grass: "grass 🌿",
+        soy: "soy 🫘",
+        flowers: "flowers 🌸"
+      };
+
+      function render() {
+        var clamped = Math.min(points, MAX_POINTS);
+        var ratio = clamped / MAX_POINTS;
+
+        // Grow the cow visually.
+        var size = MIN_COW_SIZE + (MAX_COW_SIZE - MIN_COW_SIZE) * ratio;
+        cowEl.style.fontSize = size + "px";
+
+        // Progress bar + score text.
+        barEl.style.width = (ratio * 100) + "%";
+        scoreEl.textContent = "Growth: " + clamped + " / " + MAX_POINTS + " points";
+      }
+
+      function feed(food, foodPoints) {
+        if (points >= MAX_POINTS) return;
+
+        points += foodPoints;
+        if (points > MAX_POINTS) points = MAX_POINTS;
+
+        messageEl.textContent = "Yum! You fed " + FOOD_LABELS[food] +
+          " (+" + foodPoints + ").";
+
+        // Chew animation.
+        cowEl.classList.remove("happy");
+        void cowEl.offsetWidth; // restart animation
+        cowEl.classList.add("happy");
+
+        render();
+
+        if (points >= MAX_POINTS) finish();
+      }
+
+      function finish() {
+        cowEl.textContent = "🐮";
+        messageEl.textContent = "🎉 The cow is fully grown! Great job!";
+        foodButtons.forEach(function (btn) { btn.disabled = true; });
+        resetEl.hidden = false;
+        resetEl.focus();
+      }
+
+      function reset() {
+        points = 0;
+        cowEl.textContent = "🐄";
+        messageEl.textContent = "Pick a food to start feeding!";
+        foodButtons.forEach(function (btn) { btn.disabled = false; });
+        resetEl.hidden = true;
+        render();
+      }
+
+      foodButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          feed(btn.getAttribute("data-food"),
+               parseInt(btn.getAttribute("data-points"), 10));
+        });
+      });
+
+      resetEl.addEventListener("click", reset);
+
+      // Initial state.
+      render();
+    })();
+  </script>
+</body>
+</html>
