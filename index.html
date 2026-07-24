@@ -52,6 +52,32 @@
       position: relative;
     }
 
+    .zoom-controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .zoom-controls button {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.75);
+      color: var(--ink);
+      font-size: 1.5rem;
+      line-height: 1;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .zoom-controls button:hover { background: #fff; transform: translateY(-1px); }
+    .zoom-controls button:active { transform: translateY(1px); }
+
     .cow-scene {
       width: 240px;
       height: 220px;
@@ -212,11 +238,15 @@
 
   <div class="stage">
     <div class="cow-yard">
-      <div class="cow-scene" id="cowScene" title="Drag to rotate">
+      <div class="cow-scene" id="cowScene" title="Drag to rotate · scroll to zoom">
         <div class="cow-cube" id="cowCube"></div>
       </div>
+      <div class="zoom-controls">
+        <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+        <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+      </div>
     </div>
-    <p class="hint">🖱️ Drag the cow to spin it and inspect all sides.</p>
+    <p class="hint">🖱️ Drag to spin the cow · scroll, pinch, or use +/− to zoom.</p>
 
     <div class="progress-wrap">
       <div class="progress-bar" id="progressBar"></div>
@@ -263,6 +293,7 @@
       var rotX = -14;
       var rotY = -34;
       var growthScale = MIN_SCALE;
+      var zoom = 1;   // user-controlled zoom, independent of growth
 
       var FOOD_LABELS = {
         grass: "grass 🌿",
@@ -339,7 +370,7 @@
       function updateTransform() {
         cubeEl.style.transform =
           "rotateX(" + rotX + "deg) rotateY(" + rotY + "deg) " +
-          "scale(" + growthScale + ")";
+          "scale(" + (growthScale * zoom) + ")";
       }
 
       function render() {
@@ -392,17 +423,33 @@
         render();
       }
 
-      // --- Drag to rotate (mouse + touch via Pointer Events) ---
-      var dragging = false;
-      var lastX = 0;
-      var lastY = 0;
+      // --- Interaction: drag to rotate, wheel/pinch/buttons to zoom ---
+      var MIN_ZOOM = 0.4;
+      var MAX_ZOOM = 3;
+      var pointers = new Map();   // active pointers: id -> { x, y }
+      var lastPinch = null;       // previous two-finger distance (px)
+
+      function setZoom(z) {
+        zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
+        updateTransform();
+      }
+
+      function beginInteract() {
+        sceneEl.classList.add("dragging");
+        cubeEl.style.transition = "none"; // 1:1 responsiveness while interacting
+      }
+
+      function endInteractIfIdle() {
+        if (pointers.size === 0) {
+          sceneEl.classList.remove("dragging");
+          cubeEl.style.transition = ""; // restore smoothing for growth/zoom buttons
+        }
+      }
 
       sceneEl.addEventListener("pointerdown", function (e) {
-        dragging = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        sceneEl.classList.add("dragging");
-        cubeEl.style.transition = "none"; // 1:1 responsiveness while dragging
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 2) lastPinch = null; // (re)start pinch tracking
+        beginInteract();
         if (sceneEl.setPointerCapture) {
           try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
         }
@@ -410,29 +457,48 @@
       });
 
       sceneEl.addEventListener("pointermove", function (e) {
-        if (!dragging) return;
-        var dx = e.clientX - lastX;
-        var dy = e.clientY - lastY;
-        lastX = e.clientX;
-        lastY = e.clientY;
+        var p = pointers.get(e.pointerId);
+        if (!p) return;
+        var prevX = p.x, prevY = p.y;
+        p.x = e.clientX;
+        p.y = e.clientY;
 
-        rotY += dx * 0.6;
-        rotX -= dy * 0.6;
-        updateTransform();
+        if (pointers.size >= 2) {
+          // Two fingers: pinch to zoom.
+          var pts = Array.from(pointers.values());
+          var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          if (lastPinch != null && lastPinch > 0) {
+            setZoom(zoom * (dist / lastPinch));
+          }
+          lastPinch = dist;
+        } else {
+          // One finger / mouse: rotate.
+          rotY += (p.x - prevX) * 0.6;
+          rotX -= (p.y - prevY) * 0.6;
+          updateTransform();
+        }
       });
 
-      function endDrag(e) {
-        if (!dragging) return;
-        dragging = false;
-        sceneEl.classList.remove("dragging");
-        cubeEl.style.transition = ""; // restore smoothing for growth
-        if (sceneEl.releasePointerCapture && e.pointerId != null) {
-          try { sceneEl.releasePointerCapture(e.pointerId); } catch (_) {}
-        }
+      function releasePointer(e) {
+        pointers.delete(e.pointerId);
+        if (pointers.size < 2) lastPinch = null;
+        endInteractIfIdle();
       }
 
-      sceneEl.addEventListener("pointerup", endDrag);
-      sceneEl.addEventListener("pointercancel", endDrag);
+      sceneEl.addEventListener("pointerup", releasePointer);
+      sceneEl.addEventListener("pointercancel", releasePointer);
+
+      // Mouse wheel / trackpad zoom.
+      sceneEl.addEventListener("wheel", function (e) {
+        e.preventDefault();
+        setZoom(zoom * (e.deltaY < 0 ? 1.12 : 0.89));
+      }, { passive: false });
+
+      // On-screen zoom buttons.
+      document.getElementById("zoomIn")
+        .addEventListener("click", function () { setZoom(zoom * 1.2); });
+      document.getElementById("zoomOut")
+        .addEventListener("click", function () { setZoom(zoom / 1.2); });
 
       foodButtons.forEach(function (btn) {
         btn.addEventListener("click", function () {
