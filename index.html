@@ -79,8 +79,9 @@
     .zoom-controls button:active { transform: translateY(1px); }
 
     .cow-scene {
-      width: 240px;
-      height: 220px;
+      position: relative;
+      width: min(520px, 100%);
+      height: 380px;
       perspective: 900px;
       display: flex;
       align-items: center;
@@ -107,8 +108,58 @@
       transition: transform 0.2s ease;   /* smooths growth; disabled while dragging */
     }
 
-    .cow-cube.grown {
+    .cow-cube.grown,
+    #cowCanvas.grown {
       filter: drop-shadow(0 0 12px rgba(255, 214, 71, 0.85));
+    }
+
+    #cowCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #cowCanvas[hidden] { display: none; }
+
+    .model-controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .upload-btn,
+    .model-controls button {
+      display: inline-block;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 16px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #fff;
+      background: #3d6fb4;
+      cursor: pointer;
+      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .model-controls button {
+      background: #7a8a99;
+    }
+
+    .upload-btn:hover,
+    .model-controls button:hover { filter: brightness(1.06); }
+    .model-controls button[hidden] { display: none; }
+
+    .model-status {
+      min-height: 1.1em;
+      margin: 6px 0 0;
+      font-size: 0.85rem;
+      opacity: 0.8;
     }
 
     /* A cuboid part of the cow. Its faces are generated in JS. */
@@ -240,6 +291,7 @@
     <div class="cow-yard">
       <div class="cow-scene" id="cowScene" title="Drag to rotate · scroll to zoom">
         <div class="cow-cube" id="cowCube"></div>
+        <canvas id="cowCanvas" hidden></canvas>
       </div>
       <div class="zoom-controls">
         <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
@@ -247,6 +299,15 @@
       </div>
     </div>
     <p class="hint">🖱️ Drag to spin the cow · scroll, pinch, or use +/− to zoom.</p>
+
+    <div class="model-controls">
+      <label class="upload-btn">
+        Upload cow model (.stl)
+        <input type="file" id="modelFile" accept=".stl,.STL,model/stl" hidden />
+      </label>
+      <button type="button" id="revertModel" hidden>Use default cow</button>
+    </div>
+    <p class="model-status" id="modelStatus"></p>
 
     <div class="progress-wrap">
       <div class="progress-bar" id="progressBar"></div>
@@ -267,6 +328,10 @@
     <button class="reset" id="reset" hidden>Play again 🔄</button>
   </div>
 
+  <!-- Vendored Three.js (r128 UMD) + STL loader for uploaded CAD models. -->
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/STLLoader.js"></script>
+
   <script>
     (function () {
       "use strict";
@@ -277,16 +342,25 @@
 
       var sceneEl = document.getElementById("cowScene");
       var cubeEl = document.getElementById("cowCube");
+      var canvasEl = document.getElementById("cowCanvas");
       var scoreEl = document.getElementById("score");
       var barEl = document.getElementById("progressBar");
       var messageEl = document.getElementById("message");
       var foodsEl = document.getElementById("foods");
       var resetEl = document.getElementById("reset");
+      var modelFileEl = document.getElementById("modelFile");
+      var revertModelEl = document.getElementById("revertModel");
+      var modelStatusEl = document.getElementById("modelStatus");
       var foodButtons = Array.prototype.slice.call(
         foodsEl.querySelectorAll("button.food")
       );
 
       var points = 0;
+
+      // Three.js state for an uploaded STL model (lazily initialised).
+      var three = null;      // { renderer, scene, camera, group }
+      var modelActive = false;
+      var modelBaseScale = 1; // normalises the uploaded model to a unit size
 
       // Rotation state (degrees), starting at a 3/4 angle so the model
       // reads as 3D right away.
@@ -367,10 +441,20 @@
         parts.forEach(function (p) { cubeEl.appendChild(p); });
       }
 
+      var DEG = Math.PI / 180;
+
       function updateTransform() {
-        cubeEl.style.transform =
-          "rotateX(" + rotX + "deg) rotateY(" + rotY + "deg) " +
-          "scale(" + (growthScale * zoom) + ")";
+        if (modelActive && three) {
+          three.group.rotation.x = rotX * DEG;
+          three.group.rotation.y = rotY * DEG;
+          var s = modelBaseScale * growthScale * zoom;
+          three.group.scale.set(s, s, s);
+          renderThree();
+        } else {
+          cubeEl.style.transform =
+            "rotateX(" + rotX + "deg) rotateY(" + rotY + "deg) " +
+            "scale(" + (growthScale * zoom) + ")";
+        }
       }
 
       function render() {
@@ -405,8 +489,13 @@
         if (points >= MAX_POINTS) finish();
       }
 
+      function setGrown(on) {
+        cubeEl.classList.toggle("grown", on);
+        canvasEl.classList.toggle("grown", on);
+      }
+
       function finish() {
-        cubeEl.classList.add("grown");
+        setGrown(true);
         messageEl.textContent = "🎉 The cow is fully grown! Great job! " +
           "Drag it around to admire your work.";
         foodButtons.forEach(function (btn) { btn.disabled = true; });
@@ -416,7 +505,7 @@
 
       function reset() {
         points = 0;
-        cubeEl.classList.remove("grown");
+        setGrown(false);
         messageEl.textContent = "Pick a food to start feeding!";
         foodButtons.forEach(function (btn) { btn.disabled = false; });
         resetEl.hidden = true;
@@ -499,6 +588,122 @@
         .addEventListener("click", function () { setZoom(zoom * 1.2); });
       document.getElementById("zoomOut")
         .addEventListener("click", function () { setZoom(zoom / 1.2); });
+
+      // --- Uploaded STL model (rendered with Three.js) ---
+
+      function initThree() {
+        if (three) return three;
+        var w = sceneEl.clientWidth || 400;
+        var h = sceneEl.clientHeight || 380;
+
+        var renderer = new THREE.WebGLRenderer({
+          canvas: canvasEl, antialias: true, alpha: true
+        });
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(w, h, false);
+
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+        camera.position.set(0, 0, 5);
+
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.95));
+        var key = new THREE.DirectionalLight(0xffffff, 0.85);
+        key.position.set(2, 3, 4);
+        scene.add(key);
+        var fill = new THREE.DirectionalLight(0xffffff, 0.3);
+        fill.position.set(-3, -1, -2);
+        scene.add(fill);
+
+        var group = new THREE.Group();
+        scene.add(group);
+
+        three = {
+          renderer: renderer, scene: scene, camera: camera,
+          group: group, mesh: null
+        };
+        return three;
+      }
+
+      function renderThree() {
+        if (three) three.renderer.render(three.scene, three.camera);
+      }
+
+      function resizeThree() {
+        if (!three) return;
+        var w = sceneEl.clientWidth, h = sceneEl.clientHeight;
+        three.renderer.setSize(w, h, false);
+        three.camera.aspect = w / h;
+        three.camera.updateProjectionMatrix();
+        renderThree();
+      }
+
+      function setModelActive(on) {
+        modelActive = on;
+        canvasEl.hidden = !on;
+        cubeEl.style.display = on ? "none" : "";
+        revertModelEl.hidden = !on;
+        updateTransform();
+      }
+
+      function loadSTL(arrayBuffer, name) {
+        try {
+          var t = initThree();
+          var geometry = new THREE.STLLoader().parse(arrayBuffer);
+          geometry.center();               // recentre on the origin
+          geometry.computeVertexNormals(); // shade nicely
+          geometry.computeBoundingSphere();
+
+          var radius = (geometry.boundingSphere &&
+                        geometry.boundingSphere.radius) || 1;
+          modelBaseScale = radius > 0 ? (1.1 / radius) : 1;
+
+          if (t.mesh) {                    // drop any previous model
+            t.group.remove(t.mesh);
+            t.mesh.geometry.dispose();
+            t.mesh.material.dispose();
+          }
+
+          var material = new THREE.MeshStandardMaterial({
+            color: 0xf2f2f2, roughness: 0.65, metalness: 0.0, flatShading: true
+          });
+          t.mesh = new THREE.Mesh(geometry, material);
+          t.group.add(t.mesh);
+
+          setModelActive(true);
+          resizeThree();
+          modelStatusEl.textContent = "Showing your model: " + name;
+        } catch (err) {
+          if (window.console) console.error(err);
+          modelStatusEl.textContent =
+            "Sorry — couldn't read that STL file. Please try another.";
+        }
+      }
+
+      modelFileEl.addEventListener("change", function () {
+        var file = this.files && this.files[0];
+        this.value = ""; // allow re-selecting the same file later
+        if (!file) return;
+
+        if (typeof THREE === "undefined" || !THREE.STLLoader) {
+          modelStatusEl.textContent = "The 3D viewer failed to load.";
+          return;
+        }
+
+        modelStatusEl.textContent = "Loading " + file.name + "…";
+        var reader = new FileReader();
+        reader.onload = function (e) { loadSTL(e.target.result, file.name); };
+        reader.onerror = function () {
+          modelStatusEl.textContent = "Could not read that file.";
+        };
+        reader.readAsArrayBuffer(file);
+      });
+
+      revertModelEl.addEventListener("click", function () {
+        setModelActive(false);
+        modelStatusEl.textContent = "Back to the default cow.";
+      });
+
+      window.addEventListener("resize", resizeThree);
 
       foodButtons.forEach(function (btn) {
         btn.addEventListener("click", function () {

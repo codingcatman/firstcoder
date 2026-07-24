@@ -15,7 +15,23 @@ it's fully grown at **30 points**.
 4. When the cow reaches **30 points** it's fully grown — a **Play again**
    button appears so you can reset and start over.
 
+## Use your own cow model
+
+The cow is a 3D model you can rotate (drag), zoom (scroll / pinch / the +/−
+buttons), and grow by feeding. By default it's a built-in model drawn with CSS
+3D transforms, but you can **swap in your own CAD model**:
+
+1. Click **Upload cow model (.stl)** and pick an `.stl` file (a common CAD
+   export format, e.g. from Fusion 360, SolidWorks, or Blender).
+2. Your model is rendered in a WebGL view and takes over all the controls —
+   drag to rotate, zoom, and feeding still grows it.
+3. Click **Use default cow** to switch back to the built-in cow.
+
+Everything runs locally in your browser — the uploaded file is never sent
+anywhere.
+
 ## Files
 
-- `index.html` — the entire game (HTML, CSS, and JavaScript in one file, no
-  dependencies).
+- `index.html` — the game (HTML, CSS, and JavaScript in one file).
+- `vendor/` — [Three.js](https://threejs.org/) (r128) and its `STLLoader`,
+  vendored locally so uploaded STL models render without any network access.
