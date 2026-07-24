@@ -122,10 +122,12 @@
 
     .wordmark .the {
       display: block;
+      font-family: var(--font-head);   /* same heading face (Mikela) as Dome */
       font-size: clamp(1.6rem, 4.5vw, 3rem);
       font-weight: 500;
       line-height: 1;
       margin-left: 0.12em;
+      margin-bottom: 0.22em;            /* a little more air above "Dome" */
     }
 
     .wordmark .dome {
@@ -207,7 +209,7 @@
 
     /* ---------- Concept sections ---------- */
 
-    .sections { padding: clamp(24px, 4vh, 56px) 0 40px; }
+    .sections { padding: clamp(8px, 1.5vh, 20px) 0 40px; }
 
     .lede {
       max-width: var(--measure);
