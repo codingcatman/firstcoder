@@ -20,7 +20,7 @@
       min-height: 100vh;
       font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
       color: var(--ink);
-      background: linear-gradient(180deg, var(--sky) 0%, var(--sky) 55%, var(--grass) 55%, var(--grass) 100%);
+      background: var(--sky);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -41,10 +41,6 @@
 
     .stage {
       width: min(680px, 100%);
-      background: var(--panel);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
       text-align: center;
     }
 
@@ -53,9 +49,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(180deg, #eaf7ff 0%, #eaf7ff 60%, #d7f0cd 60%, #d7f0cd 100%);
-      border-radius: 18px;
-      overflow: hidden;
       position: relative;
     }
 
@@ -172,37 +165,26 @@
 
     .foods {
       display: flex;
-      gap: 12px;
+      gap: 28px;
       justify-content: center;
       flex-wrap: wrap;
-      margin-top: 12px;
+      margin-top: 14px;
     }
 
+    /* Plain clickable emojis — no button chrome. */
     button.food {
-      flex: 1 1 130px;
-      max-width: 160px;
       border: none;
-      border-radius: 16px;
-      padding: 14px 10px;
-      font-size: 1rem;
-      font-family: inherit;
-      font-weight: bold;
-      color: #fff;
+      background: none;
+      padding: 6px;
+      font-size: 3rem;
+      line-height: 1;
       cursor: pointer;
-      transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.2s ease;
-      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
+      transition: transform 0.12s ease, opacity 0.2s ease;
     }
 
-    button.food .emoji { display: block; font-size: 1.6rem; margin-bottom: 4px; }
-    button.food .pts { display: block; font-size: 0.8rem; opacity: 0.9; font-weight: normal; }
-
-    button.food:hover:not(:disabled) { transform: translateY(-2px); }
-    button.food:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18); }
-    button.food:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .food.grass { background: #5aa84b; }
-    .food.soy { background: #c9a227; }
-    .food.flowers { background: #d76ba3; }
+    button.food:hover:not(:disabled) { transform: scale(1.2); }
+    button.food:active:not(:disabled) { transform: scale(0.92); }
+    button.food:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .reset {
       margin-top: 18px;
@@ -244,21 +226,12 @@
     <p class="message" id="message">Pick a food to start feeding!</p>
 
     <div class="foods" id="foods">
-      <button class="food grass" data-food="grass" data-points="3">
-        <span class="emoji">🌿</span>
-        Grass
-        <span class="pts">+3 points</span>
-      </button>
-      <button class="food soy" data-food="soy" data-points="2">
-        <span class="emoji">🫘</span>
-        Soy
-        <span class="pts">+2 points</span>
-      </button>
-      <button class="food flowers" data-food="flowers" data-points="1">
-        <span class="emoji">🌸</span>
-        Flowers
-        <span class="pts">+1 point</span>
-      </button>
+      <button class="food" data-food="grass" data-points="3"
+              title="Grass · +3 points" aria-label="Feed grass, plus 3 points">🌿</button>
+      <button class="food" data-food="soy" data-points="2"
+              title="Soy · +2 points" aria-label="Feed soy, plus 2 points">🫘</button>
+      <button class="food" data-food="flowers" data-points="1"
+              title="Flowers · +1 point" aria-label="Feed flowers, plus 1 point">🌸</button>
     </div>
 
     <button class="reset" id="reset" hidden>Play again 🔄</button>
