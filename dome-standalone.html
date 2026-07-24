@@ -901,6 +901,7 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       var BORDER_MARGIN = 0.96;  // keep a small gap between model and border
       var HOME_FRAC = 0.8;       // initial zoom as a fraction of the max
       var modelEffRadius = 1;    // worst-case projected radius (world units at zoom 1)
+      var shadowRefZoom = 0;     // zoom the contact shadow's base size is calibrated to
 
       var stageEl   = document.getElementById("stage");
       var sceneEl   = document.getElementById("domeScene");
@@ -1004,6 +1005,7 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
         MAX_ZOOM = (fit * BORDER_MARGIN) / modelEffRadius;
         MIN_ZOOM = MAX_ZOOM * 0.4;
         zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+        updateShadow();
       }
 
       // Continuous render loop (needed for the idle auto-spin and for smooth
@@ -1053,6 +1055,8 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
 
         computeZoomLimits();
         zoom = HOME_FRAC * MAX_ZOOM;   // frame the model on first load
+        shadowRefZoom = zoom;          // calibrate the shadow to this size
+        updateShadow();
         resizeThree();
         applyTransform();
         renderThree();
@@ -1108,9 +1112,19 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
 
       function setZoom(z) {
         zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
-        // Fade the contact shadow a touch as the object shrinks/grows.
-        if (shadowEl) shadowEl.style.opacity =
-          String(Math.max(0.25, Math.min(1, zoom)));
+        updateShadow();
+      }
+
+      // Keep the contact shadow sized with the model: the object's apparent
+      // size scales with zoom, so the shadow scales by zoom / its reference.
+      function updateShadow() {
+        if (!shadowEl) return;
+        var ref = shadowRefZoom || zoom || 1;
+        var s = zoom / ref;
+        shadowEl.style.transform = "translate(-50%, -50%) scale(" + s + ")";
+        // Ease opacity so it stays subtle when large and reads when small.
+        shadowEl.style.opacity =
+          String(Math.max(0.25, Math.min(0.72, 0.6 - (s - 1) * 0.18)));
       }
 
       sceneEl.addEventListener("pointerdown", function (e) {
