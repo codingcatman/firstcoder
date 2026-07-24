@@ -220,6 +220,13 @@
       margin: 0;
     }
 
+    /* Same line as the section dividers, a touch thicker; sits between the
+       hero (shadow) and the first block of text. */
+    .rule.thick {
+      border-top-width: 2px;
+      margin-bottom: clamp(34px, 6vh, 68px);
+    }
+
     .section {
       display: grid;
       grid-template-columns: 1fr;
@@ -343,6 +350,8 @@
 
   <!-- ===================== CONCEPT ===================== -->
   <main class="wrap sections">
+
+    <hr class="rule thick" />
 
     <!-- NOTE: The copy below is placeholder text. Replace it with the real
          story of The Dome — what it is, who it's for, and why it matters. -->
@@ -849,6 +858,7 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
       // View state.
       var rotX = -12;   // gentle downward tilt for a 3/4 read
       var rotY = -28;
+      var scrollTilt = 0;   // extra tilt driven by page scroll (0 → 90°)
       var zoom = 1.05;
       var modelBaseScale = 1;
 
@@ -910,7 +920,7 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
 
       function applyTransform() {
         if (!three) return;
-        three.group.rotation.x = rotX * DEG;
+        three.group.rotation.x = (rotX + scrollTilt) * DEG;
         three.group.rotation.y = rotY * DEG;
         var sc = modelBaseScale * zoom;
         three.group.scale.set(sc, sc, sc);
@@ -1054,6 +1064,9 @@ window.__DOME_STL_B64 = "U1RMQiBBVEYgMTUuOC4wLjAgQ09MT1I9oKCg/yAgICAgICAgICAgICA
         var t = range > 0
           ? Math.min(1, Math.max(0, window.pageYOffset / range)) : 0;
         zoom = MAX_ZOOM - (MAX_ZOOM - MIN_ZOOM) * t;
+        // Gradually tilt the model up to 90°, completing earlier than the
+        // shrink so the full tilt is visible before the model scrolls away.
+        scrollTilt = 90 * Math.min(1, t / 0.6);
         applyTransform();
         updateShadow();
         renderThree();
