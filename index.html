@@ -453,12 +453,12 @@
     </div>
   </footer>
 
-  <!-- Vendored Three.js (r128 UMD) + STL loader, shared with the rest of the
-       project so the model renders with no network access. -->
+  <!-- Vendored Three.js (r128 UMD) + OBJ loader so the Fusion model renders
+       with its per-part materials and no network access. -->
   <script src="vendor/three.min.js"></script>
-  <script src="vendor/STLLoader.js"></script>
-  <!-- The Dome model embedded as base64 so it loads even from a file:// URL. -->
-  <script src="models/dome-stl-data.js"></script>
+  <script src="vendor/OBJLoader.js"></script>
+  <!-- The Dome model (Fusion OBJ) embedded as base64 so it loads from file://. -->
+  <script src="models/dome-obj-data.js"></script>
 
   <script>
     (function () {
@@ -531,11 +531,29 @@
         fill.position.set(0, -3, 2);
         scene.add(fill);
 
+        // A soft studio environment so metal (steel) and clear (polycarbonate)
+        // parts have something to reflect on the ivory backdrop.
+        try {
+          var ec = document.createElement("canvas");
+          ec.width = 64; ec.height = 32;
+          var eg = ec.getContext("2d");
+          var grd = eg.createLinearGradient(0, 0, 0, 32);
+          grd.addColorStop(0.0, "#ffffff");
+          grd.addColorStop(0.5, "#f3ebd7");
+          grd.addColorStop(1.0, "#b3a889");
+          eg.fillStyle = grd; eg.fillRect(0, 0, 64, 32);
+          var etex = new THREE.CanvasTexture(ec);
+          etex.mapping = THREE.EquirectangularReflectionMapping;
+          var pmrem = new THREE.PMREMGenerator(renderer);
+          scene.environment = pmrem.fromEquirectangular(etex).texture;
+          etex.dispose(); pmrem.dispose();
+        } catch (e) { if (window.console) console.error(e); }
+
         var group = new THREE.Group();
         scene.add(group);
 
         three = { renderer: renderer, scene: scene, camera: camera,
-                  group: group, mesh: null };
+                  group: group, model: null };
         return three;
       }
 
@@ -586,41 +604,64 @@
         requestAnimationFrame(loop);
       }
 
-      function loadSTL(arrayBuffer) {
-        var t = initThree();
-        var geometry = new THREE.STLLoader().parse(arrayBuffer);
-        geometry.rotateX(-Math.PI / 2);   // CAD Z-up -> Three.js Y-up
-        geometry.center();                // pivot on the model's centre
-        geometry.computeVertexNormals();
-        geometry.computeBoundingBox();
-        geometry.computeBoundingSphere();
+      // Per-part appearance, keyed by the Fusion material names in the OBJ.
+      // Base colours come from the exported .mtl (Kd); finishes are chosen to
+      // match the named Fusion appearances (satin steel, semigloss bamboo,
+      // clear polycarbonate, matte MDF).
+      var OBJ_MATERIALS = {
+        "Steel_-_Satin":           { color: 0xa0a0a0, roughness: 0.40, metalness: 0.90 },
+        "Bamboo_Dark_-_Semigloss": { color: 0x0d0d0d, roughness: 0.35, metalness: 0.00 },
+        "Polycarbonate_(Clear)":   { color: 0xf3f4f1, roughness: 0.10, metalness: 0.00,
+                                     transparent: true, opacity: 0.42 },
+        "MDF_Board":               { color: 0x111111, roughness: 0.78, metalness: 0.00 }
+      };
 
-        var radius = (geometry.boundingSphere &&
-                      geometry.boundingSphere.radius) || 1;
+      function applyObjMaterials(obj) {
+        obj.traverse(function (child) {
+          if (!child.isMesh) return;
+          var name = (child.material && child.material.name) || "";
+          var spec = OBJ_MATERIALS[name] ||
+                     { color: 0x9a9a9a, roughness: 0.6, metalness: 0.0 };
+          var m = new THREE.MeshStandardMaterial({
+            color: spec.color, roughness: spec.roughness,
+            metalness: spec.metalness, envMapIntensity: 1.0
+          });
+          if (spec.transparent) {
+            m.transparent = true; m.opacity = spec.opacity;
+            m.depthWrite = false; m.side = THREE.DoubleSide;
+          }
+          child.material = m;
+          if (child.geometry && !child.geometry.attributes.normal) {
+            child.geometry.computeVertexNormals();
+          }
+        });
+      }
+
+      function loadOBJ(objText) {
+        var t = initThree();
+        var obj = new THREE.OBJLoader().parse(objText);
+        applyObjMaterials(obj);
+
+        // Orient (CAD Z-up -> Three.js Y-up) and centre on the model's middle.
+        obj.rotation.x = -Math.PI / 2;
+        obj.updateMatrixWorld(true);
+        var box = new THREE.Box3().setFromObject(obj);
+        var center = box.getCenter(new THREE.Vector3());
+        var size = box.getSize(new THREE.Vector3());
+        obj.position.set(-center.x, -center.y, -center.z);
+
+        var radius = 0.5 * size.length() || 1;
         modelBaseScale = radius > 0 ? (1.35 / radius) : 1;
 
-        // Worst-case projected radius across all allowed rotations ≈ half the
-        // diagonal of the two largest bounding-box dimensions. This drives the
-        // zoom clamp so the model never crosses the frame borders.
-        var bb = geometry.boundingBox;
-        var dims = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
-                   .sort(function (a, b) { return b - a; });
+        // Worst-case projected radius (half-diagonal of the two largest dims)
+        // drives the zoom clamp so the model never crosses the frame borders.
+        var dims = [size.x, size.y, size.z].sort(function (a, b) { return b - a; });
         modelEffRadius =
           0.5 * Math.sqrt(dims[0] * dims[0] + dims[1] * dims[1]) * modelBaseScale;
 
-        if (t.mesh) {
-          t.group.remove(t.mesh);
-          t.mesh.geometry.dispose();
-          t.mesh.material.dispose();
-        }
-
-        // Refined matte graphite — soft, diffuse highlights so the faceted
-        // CAD surface reads as one smooth, premium object.
-        var material = new THREE.MeshStandardMaterial({
-          color: 0x201d18, roughness: 0.62, metalness: 0.12
-        });
-        t.mesh = new THREE.Mesh(geometry, material);
-        t.group.add(t.mesh);
+        if (t.model) t.group.remove(t.model);
+        t.model = obj;
+        t.group.add(obj);
 
         computeZoomLimits();
         zoom = MAX_ZOOM;   // biggest at the top of the page
@@ -635,35 +676,27 @@
         }
       }
 
-      function b64ToArrayBuffer(b64) {
-        var bin = atob(b64);
-        var len = bin.length;
-        var bytes = new Uint8Array(len);
-        for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-        return bytes.buffer;
-      }
-
       function loadModel() {
-        if (typeof THREE === "undefined" || !THREE.STLLoader || !hasWebGL()) {
+        if (typeof THREE === "undefined" || !THREE.OBJLoader || !hasWebGL()) {
           stageEl.classList.add("no-webgl");
           return;
         }
         try {
-          if (typeof window.__DOME_STL_B64 === "string") {
-            loadSTL(b64ToArrayBuffer(window.__DOME_STL_B64));
+          if (typeof window.__DOME_OBJ_B64 === "string") {
+            loadOBJ(atob(window.__DOME_OBJ_B64));   // OBJ is ASCII text
             requestAnimationFrame(loop);
             return;
           }
         } catch (err) {
           if (window.console) console.error(err);
         }
-        // Fallback: fetch the .stl (works when served over HTTP).
-        fetch("models/dome.stl")
+        // Fallback: fetch the .obj (works when served over HTTP).
+        fetch("models/dome.obj")
           .then(function (r) {
             if (!r.ok) throw new Error("HTTP " + r.status);
-            return r.arrayBuffer();
+            return r.text();
           })
-          .then(function (buf) { loadSTL(buf); requestAnimationFrame(loop); })
+          .then(function (txt) { loadOBJ(txt); requestAnimationFrame(loop); })
           .catch(function (err) {
             if (window.console) console.error(err);
             stageEl.classList.add("no-webgl");
