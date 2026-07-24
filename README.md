@@ -1,3 +1,26 @@
+# The Dome — portfolio site
+
+`dome.html` is a standalone, editorial portfolio page for **The Dome**. Open it
+in any browser (no build step or server needed) — the CAD model is embedded in
+the page, so it loads even from a `file://` URL.
+
+- The **3D model** (`models/dome.stl`) sits at the centre of the hero and:
+  - **Drag** to rotate it and inspect every angle.
+  - **Scroll** (or pinch, or use the on-screen +/− buttons) to zoom.
+  - It **auto-spins** gently while idle and pauses the moment you interact.
+- Below the hero are short **concept sections** (Concept · Form · Craft · Specs)
+  with placeholder copy — replace the text with the real story of The Dome.
+- Rendered with the same vendored [Three.js](https://threejs.org/) (r128) and
+  `STLLoader` in `vendor/`, so it needs no network access.
+
+Model files:
+
+- `models/dome.stl` — the source CAD model (binary STL).
+- `models/dome-stl-data.js` — the same model embedded as base64 (auto-generated
+  from `dome.stl`), loaded at startup so the page works from a `file://` URL.
+
+---
+
 # Grow the Cow 🐄
 
 A tiny playable browser game. Feed a cow different foods to help it grow until
