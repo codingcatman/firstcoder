@@ -102,10 +102,15 @@
 
     .hero {
       position: relative;
-      min-height: 82vh;
+      min-height: 84vh;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
+    }
+
+    /* Divider pinned to the bottom of the hero, just under the model. */
+    .hero-divider {
+      flex: 0 0 auto;
+      padding-bottom: clamp(6px, 1.5vh, 20px);
     }
 
     .wordmark {
@@ -135,25 +140,28 @@
     /* The stage holds the 3D canvas; it sits behind the wordmark and the
        tagline so the whole hero reads as one composition. */
     .stage {
-      position: absolute;
-      inset: 0;
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;   /* allow the flex item to shrink on short screens */
       z-index: 1;
     }
 
     .stage-inner {
       position: absolute;
+      top: 0;
+      bottom: 0;
       left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      /* Flex centres the model in the band; the small upward bias offsets the
+         shadow hanging below so the model + shadow read as a centred group. */
+      transform: translateX(-50%) translateY(-3%);
       width: min(880px, 96vw);
-      height: min(720px, 78vh);
     }
 
     /* Soft contact shadow grounding the object. */
     .contact-shadow {
       position: absolute;
       left: 50%;
-      top: 96%;          /* fixed vertical position; size is set in JS by zoom */
+      top: 94%;          /* low in the band; JS re-centres the whole group */
       width: 50%;
       height: 8%;
       transform: translate(-50%, -50%);
@@ -170,12 +178,9 @@
     #domeScene {
       position: absolute;
       inset: 0;
-      cursor: grab;
-      touch-action: pan-y;   /* let the page scroll vertically over the model */
-      user-select: none;
+      pointer-events: none;   /* model is non-interactive; page scrolls freely */
       z-index: 2;
     }
-    #domeScene.dragging { cursor: grabbing; }
 
     #domeCanvas {
       position: absolute;
@@ -332,11 +337,12 @@
       </div>
     </div>
 
-    <!-- 3D stage sits behind the wordmark, filling the hero. -->
+    <!-- 3D stage: a flex-growing band between the wordmark and the divider,
+         with the model centred inside it. -->
     <div class="stage" id="stage" aria-hidden="false">
       <div class="stage-inner">
         <div class="contact-shadow" id="contactShadow"></div>
-        <div id="domeScene" title="Drag to rotate">
+        <div id="domeScene">
           <canvas id="domeCanvas"></canvas>
         </div>
       </div>
@@ -346,12 +352,14 @@
       </div>
     </div>
 
+    <div class="wrap hero-divider">
+      <hr class="rule thick" />
+    </div>
+
   </header>
 
   <!-- ===================== CONCEPT ===================== -->
   <main class="wrap sections">
-
-    <hr class="rule thick" />
 
     <!-- NOTE: The copy below is placeholder text. Replace it with the real
          story of The Dome — what it is, who it's for, and why it matters. -->
@@ -461,7 +469,7 @@
       // be zoomed past the frame borders; recomputed on load and on resize.
       var MIN_ZOOM = 0.45;
       var MAX_ZOOM = 1.6;
-      var BORDER_MARGIN = 0.96;  // keep a small gap between model and border
+      var BORDER_MARGIN = 0.84;  // model size vs frame; leaves room in the band
       var modelEffRadius = 1;    // worst-case projected radius (world units at zoom 1)
 
       var stageEl   = document.getElementById("stage");
@@ -478,8 +486,7 @@
 
       // Idle auto-spin: slowly turns the object until the user interacts,
       // then eases back after they let go.
-      var autoSpin = true;
-      var idleTimer = null;
+      var autoSpin = true;   // ambient rotation; the model is non-interactive
 
       var three = null; // { renderer, scene, camera, group, mesh }
 
@@ -621,6 +628,11 @@
         scrollZoom();      // sync size to the current scroll position
         applyTransform();
         renderThree();
+        // The wordmark's height depends on the web font, which changes the
+        // stage band; refit the canvas once fonts have loaded.
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(function () { resizeThree(); scrollZoom(); });
+        }
       }
 
       function b64ToArrayBuffer(b64) {
@@ -658,17 +670,7 @@
           });
       }
 
-      // ---------- Interaction: drag to rotate (zoom is driven by page scroll) ----------
-      var pointers = new Map();
-
-      function pauseSpin() {
-        autoSpin = false;
-        if (idleTimer) clearTimeout(idleTimer);
-      }
-      function scheduleResumeSpin() {
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(function () { autoSpin = true; }, 3500);
-      }
+      // ---------- The model is non-interactive; page scroll drives it ----------
 
       // Page scroll drives the model + shadow size: biggest at the top of the
       // page, shrinking to the minimum as you scroll down through the hero.
@@ -700,39 +702,9 @@
           String(Math.max(0.25, Math.min(0.6, 0.32 + s * 0.28)));
       }
 
-      sceneEl.addEventListener("pointerdown", function (e) {
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        pauseSpin();
-        sceneEl.classList.add("dragging");
-        // Only capture the mouse; on touch we leave the browser free to scroll.
-        if (e.pointerType === "mouse") {
-          if (sceneEl.setPointerCapture) {
-            try { sceneEl.setPointerCapture(e.pointerId); } catch (_) {}
-          }
-          e.preventDefault();
-        }
+      window.addEventListener("resize", function () {
+        resizeThree(); scrollZoom();
       });
-
-      sceneEl.addEventListener("pointermove", function (e) {
-        var p = pointers.get(e.pointerId);
-        if (!p) return;
-        rotY += (e.clientX - p.x) * 0.5;
-        rotX += (e.clientY - p.y) * 0.5;
-        rotX = Math.max(-85, Math.min(85, rotX));  // avoid flipping over
-        p.x = e.clientX; p.y = e.clientY;
-      });
-
-      function releasePointer(e) {
-        pointers.delete(e.pointerId);
-        if (pointers.size === 0) {
-          sceneEl.classList.remove("dragging");
-          scheduleResumeSpin();
-        }
-      }
-      sceneEl.addEventListener("pointerup", releasePointer);
-      sceneEl.addEventListener("pointercancel", releasePointer);
-
-      window.addEventListener("resize", function () { resizeThree(); scrollZoom(); });
       window.addEventListener("scroll", scrollZoom, { passive: true });
 
       loadModel();
