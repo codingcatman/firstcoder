@@ -5,7 +5,9 @@ it's fully grown at **30 points**.
 
 ## How to play
 
-1. Open `index.html` in any web browser (no build step or server needed).
+1. Open `index.html` in any web browser — just double-click it, no build step
+   or server needed. (The 3D model is embedded in the page, so it loads even
+   from a `file://` URL.)
 2. Click a food button to feed the cow. Each food adds growth points:
    - 🌿 **Grass** — 3 points
    - 🫘 **Soy** — 2 points
@@ -33,6 +35,8 @@ browser — nothing is sent anywhere.
 ## Files
 
 - `index.html` — the game (HTML, CSS, and JavaScript in one file).
-- `models/cow.stl` — the built-in 3D cow model, loaded at startup.
+- `models/cow.stl` — the built-in 3D cow model (source asset).
+- `models/cow-stl-data.js` — the same model embedded as base64 (auto-generated
+  from `cow.stl`), loaded at startup so the page works from a `file://` URL.
 - `vendor/` — [Three.js](https://threejs.org/) (r128) and its `STLLoader`,
   vendored locally so the model renders without any network access.

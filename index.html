@@ -308,9 +308,11 @@
     <button class="reset" id="reset" hidden>Play again 🔄</button>
   </div>
 
-  <!-- Vendored Three.js (r128 UMD) + STL loader for uploaded CAD models. -->
+  <!-- Vendored Three.js (r128 UMD) + STL loader for the 3D cow model. -->
   <script src="vendor/three.min.js"></script>
   <script src="vendor/STLLoader.js"></script>
+  <!-- The cow model embedded as base64 so it loads even from a file:// URL. -->
+  <script src="models/cow-stl-data.js"></script>
 
   <script>
     (function () {
@@ -713,11 +715,32 @@
         }
       }
 
-      // Load the built-in cow model (baked into the repo) on startup.
-      // If anything fails, the CSS fallback cow stays on screen.
+      // Decode the base64-embedded STL into an ArrayBuffer.
+      function b64ToArrayBuffer(b64) {
+        var bin = atob(b64);
+        var len = bin.length;
+        var bytes = new Uint8Array(len);
+        for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+      }
+
+      // Load the built-in cow model on startup. It's embedded as base64 so it
+      // works from a file:// URL too; we fall back to fetch(), then to the CSS
+      // cow if all else fails.
       function loadDefaultModel() {
         if (typeof THREE === "undefined" || !THREE.STLLoader) return;
         modelStatusEl.textContent = "Loading cow…";
+
+        if (typeof window.__COW_STL_B64 === "string") {
+          try {
+            loadSTL(b64ToArrayBuffer(window.__COW_STL_B64), "cow");
+            return;
+          } catch (err) {
+            if (window.console) console.error(err);
+          }
+        }
+
+        // Fallback: fetch the .stl (works when served over HTTP).
         fetch(DEFAULT_MODEL_URL)
           .then(function (res) {
             if (!res.ok) throw new Error("HTTP " + res.status);
