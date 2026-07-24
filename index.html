@@ -78,6 +78,25 @@
     .zoom-controls button:hover { background: #fff; transform: translateY(-1px); }
     .zoom-controls button:active { transform: translateY(1px); }
 
+    .mute-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.75);
+      font-size: 1.2rem;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .mute-btn:hover { background: #fff; transform: translateY(-1px); }
+    .mute-btn:active { transform: translateY(1px); }
+
     .cow-scene {
       position: relative;
       width: min(520px, 100%);
@@ -297,6 +316,7 @@
         <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
         <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
       </div>
+      <button type="button" id="muteBtn" class="mute-btn" aria-label="Mute sound">🔊</button>
     </div>
     <p class="hint">🖱️ Drag to spin the cow · scroll, pinch, or use +/− to zoom.</p>
 
@@ -351,6 +371,7 @@
       var modelFileEl = document.getElementById("modelFile");
       var revertModelEl = document.getElementById("revertModel");
       var modelStatusEl = document.getElementById("modelStatus");
+      var muteBtnEl = document.getElementById("muteBtn");
       var foodButtons = Array.prototype.slice.call(
         foodsEl.querySelectorAll("button.food")
       );
@@ -374,6 +395,55 @@
         soy: "soy 🫘",
         flowers: "flowers 🌸"
       };
+
+      // --- Sound effects (synthesized with Web Audio, no audio files) ---
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      var audioCtx = null;
+      var muted = false;
+
+      // Lazily create/resume the context (must follow a user gesture).
+      function ensureAudio() {
+        if (!AudioCtx) return null;
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
+      }
+
+      // A single short tone with a quick pluck envelope.
+      function blip(freq, at, dur, type, peak) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type || "triangle";
+        osc.frequency.setValueAtTime(freq, at);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(peak || 0.2, at + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(at);
+        osc.stop(at + dur + 0.03);
+      }
+
+      // A happy little "munch" that ticks upward; brighter for richer food.
+      function playFeedSound(foodPoints) {
+        if (muted) return;
+        var ctx = ensureAudio();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        var base = 300 + foodPoints * 90; // flowers lowest, grass highest
+        blip(base, t, 0.12, "triangle", 0.2);
+        blip(base * 1.5, t + 0.08, 0.14, "sine", 0.16);
+      }
+
+      // A short ascending fanfare when the cow is fully grown.
+      function playFinishSound() {
+        if (muted) return;
+        var ctx = ensureAudio();
+        if (!ctx) return;
+        var t = ctx.currentTime + 0.05;
+        [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
+          blip(f, t + i * 0.13, 0.24, "triangle", 0.22);
+        });
+      }
 
       // --- Build the 3D cow model out of shaded cuboids ---
 
@@ -479,6 +549,8 @@
         messageEl.textContent = "Yum! You fed " + FOOD_LABELS[food] +
           " (+" + foodPoints + ").";
 
+        playFeedSound(foodPoints);
+
         // Chew bounce on the scene (independent of the cube's rotation).
         sceneEl.classList.remove("happy");
         void sceneEl.offsetWidth; // restart animation
@@ -496,6 +568,7 @@
 
       function finish() {
         setGrown(true);
+        playFinishSound();
         messageEl.textContent = "🎉 The cow is fully grown! Great job! " +
           "Drag it around to admire your work.";
         foodButtons.forEach(function (btn) { btn.disabled = true; });
@@ -713,6 +786,13 @@
       });
 
       resetEl.addEventListener("click", reset);
+
+      muteBtnEl.addEventListener("click", function () {
+        muted = !muted;
+        muteBtnEl.textContent = muted ? "🔇" : "🔊";
+        muteBtnEl.setAttribute("aria-label", muted ? "Unmute sound" : "Mute sound");
+        if (!muted) ensureAudio();
+      });
 
       // Initial state.
       buildCow();
