@@ -88,6 +88,13 @@
       color: var(--ink-soft);
     }
 
+    .topbar .back-link {
+      text-decoration: none;
+      opacity: 0.85;
+      transition: opacity 0.2s ease;
+    }
+    .topbar .back-link:hover { opacity: 1; }
+
     /* ---------- Hero ---------- */
 
     .hero {
@@ -311,6 +318,7 @@
   <header class="hero">
     <div class="wrap" style="position:relative; z-index:3;">
       <div class="topbar">
+        <a href="../index.html" class="back-link">&larr; Product Design</a>
         <span>The Dome</span>
       </div>
 

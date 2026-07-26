@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Design — Adam Banck</title>
+  <link rel="stylesheet" href="../../assets/site.css" />
+  <link rel="stylesheet" href="../../assets/fonts.css" />
+  <style>
+    .page-head { padding: clamp(36px, 7vh, 80px) 0 clamp(20px, 4vh, 44px); }
+    .page-head .kicker {
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .page-head h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 6.5vw, 4.4rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0.3em 0 0;
+    }
+
+    .work-list { list-style: none; margin: 0; padding: 0; }
+    .work-list li { border-top: 1px solid var(--line); }
+    .work-list li:last-child { border-bottom: 1px solid var(--line); }
+    .work-list a {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px 24px;
+      padding: clamp(22px, 4vh, 38px) 0;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .work-list .name {
+      font-family: var(--font-head);
+      font-size: clamp(1.6rem, 4vw, 2.6rem);
+      font-weight: 600;
+      transition: opacity 0.3s ease;
+    }
+    .work-list a:hover .name { opacity: 0.6; }
+    .work-list .meta-line {
+      display: flex;
+      gap: 20px;
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+
+    .empty-note {
+      padding: clamp(34px, 6vh, 60px) 0 clamp(60px, 10vh, 100px);
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <a href="../../index.html">&larr; Portfolio</a>
+      <span>Product Design</span>
+    </header>
+
+    <div class="page-head">
+      <p class="kicker">Work / Product Design</p>
+      <h1 class="serif">Product Design</h1>
+    </div>
+
+    <hr class="rule" />
+
+    <ul class="work-list">
+      <li>
+        <a href="the-dome/index.html">
+          <span class="name serif">The Dome</span>
+          <span class="meta-line">
+            <span>A considered object</span>
+            <span>2026</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+
+    <p class="empty-note">More product design work coming soon.</p>
+  </div>
+
+  <footer>
+    <div class="wrap foot-grid">
+      <span class="meta">Adam Peter Ehrensvärd Banck &middot; 2026</span>
+    </div>
+  </footer>
+</body>
+</html>
