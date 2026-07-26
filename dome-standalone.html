@@ -88,29 +88,6 @@
       color: var(--ink-soft);
     }
 
-    /* Section links, sitting just below the divider under the model. */
-    .section-nav {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: clamp(20px, 4vw, 48px);
-      padding: clamp(12px, 2.4vh, 24px) 0 clamp(8px, 1.6vh, 20px);
-      font-size: 0.75rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-    }
-    .section-nav a {
-      text-decoration: none;
-      opacity: 0.85;
-      display: inline-block;
-      transform-origin: center;
-      will-change: transform;
-      transition: opacity 0.35s ease,
-                  transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .section-nav a:hover { opacity: 1; transform: scale(1.07); }
-
     /* ---------- Hero ---------- */
 
     .hero {
@@ -222,7 +199,7 @@
 
     /* ---------- Concept sections ---------- */
 
-    .sections { padding: clamp(8px, 1.5vh, 20px) 0 40px; }
+    .sections { padding: clamp(4px, 0.8vh, 12px) 0 40px; }
 
     .lede {
       max-width: var(--measure);
@@ -304,7 +281,7 @@
     /* ---------- Footer ---------- */
 
     footer {
-      padding: clamp(48px, 9vh, 100px) 0 40px;
+      padding: clamp(18px, 3vh, 32px) 0 clamp(18px, 3vh, 32px);
       border-top: 1px solid var(--line);
       margin-top: clamp(40px, 8vh, 90px);
     }
@@ -312,12 +289,9 @@
       display: flex;
       flex-wrap: wrap;
       align-items: baseline;
-      justify-content: space-between;
+      justify-content: center;
+      text-align: center;
       gap: 18px;
-    }
-    .foot-grid .mark {
-      font-size: 1.5rem;
-      font-weight: 700;
     }
     .foot-grid .meta {
       font-size: 0.72rem;
@@ -369,13 +343,6 @@
 
   <!-- ===================== CONCEPT ===================== -->
   <main class="wrap sections">
-
-    <nav class="section-nav" aria-label="Sections">
-      <a href="#concept">Concept</a>
-      <a href="#form">Form</a>
-      <a href="#craft">Craft</a>
-      <a href="#specs">Specs</a>
-    </nav>
 
     <!-- NOTE: The copy below is placeholder text. Replace it with the real
          story of The Dome — what it is, who it's for, and why it matters. -->
