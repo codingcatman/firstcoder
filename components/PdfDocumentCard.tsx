@@ -6,6 +6,8 @@ import React, {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
+  type ReactNode,
 } from "react";
 
 // ---------------------------------------------------------------------------
@@ -15,19 +17,19 @@ import React, {
 // (image dithering, presets, remixing) that a plain document card doesn't need.
 // ---------------------------------------------------------------------------
 
-var vertexShaderSource = `#version 300 es
+const vertexShaderSource = `#version 300 es
 precision mediump float;
 layout(location = 0) in vec4 a_position;
 void main() {
   gl_Position = a_position;
 }`;
 
-var declarePI = `
+const declarePI = `
 #define TWO_PI 6.28318530718
 #define PI 3.14159265358979323846
 `;
 
-var proceduralHash11 = `
+const proceduralHash11 = `
   float hash11(float p) {
     p = fract(p * 0.3183099) + 0.1;
     p *= p + 19.19;
@@ -35,7 +37,7 @@ var proceduralHash11 = `
   }
 `;
 
-var proceduralHash21 = `
+const proceduralHash21 = `
   float hash21(vec2 p) {
     p = fract(p * vec2(0.3183099, 0.3678794)) + 0.1;
     p += dot(p, p + 19.19);
@@ -43,7 +45,7 @@ var proceduralHash21 = `
   }
 `;
 
-var simplexNoise = `
+const simplexNoise = `
 vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
 float snoise(vec2 v) {
   const vec4 C = vec4(0.211324865405187, 0.366025403784439,
@@ -73,7 +75,7 @@ float snoise(vec2 v) {
 }
 `;
 
-var ditheringFragmentShader = `#version 300 es
+const ditheringFragmentShader = `#version 300 es
 precision mediump float;
 
 uniform float u_time;
@@ -134,7 +136,9 @@ void main() {
 }
 `;
 
-function getShaderColorFromString(colorString) {
+type RGBA = [number, number, number, number];
+
+function getShaderColorFromString(colorString: string): RGBA {
   if (typeof colorString !== "string" || !colorString.startsWith("#")) {
     return [0, 0, 0, 1];
   }
@@ -148,8 +152,9 @@ function getShaderColorFromString(colorString) {
   return [r, g, b, a];
 }
 
-function createShader(gl, type, source) {
+function createShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
   const shader = gl.createShader(type);
+  if (!shader) return null;
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
@@ -160,11 +165,12 @@ function createShader(gl, type, source) {
   return shader;
 }
 
-function createProgram(gl, vsSource, fsSource) {
+function createProgram(gl: WebGL2RenderingContext, vsSource: string, fsSource: string): WebGLProgram | null {
   const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
   const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
   if (!vs || !fs) return null;
   const program = gl.createProgram();
+  if (!program) return null;
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
   gl.linkProgram(program);
@@ -178,15 +184,41 @@ function createProgram(gl, vsSource, fsSource) {
   return program;
 }
 
+interface PaperGrainUniforms {
+  colorBack: RGBA;
+  colorFront: RGBA;
+  pxSize: number;
+  scale: number;
+}
+
+interface ShaderUniformLocations {
+  u_time: WebGLUniformLocation | null;
+  u_pixelRatio: WebGLUniformLocation | null;
+  u_resolution: WebGLUniformLocation | null;
+  u_pxSize: WebGLUniformLocation | null;
+  u_colorBack: WebGLUniformLocation | null;
+  u_colorFront: WebGLUniformLocation | null;
+  u_scale: WebGLUniformLocation | null;
+}
+
 /** Minimal WebGL2 full-viewport shader mount, driving one <canvas> per instance. */
 class ShaderMount {
-  rafId = null;
-  lastRenderTime = 0;
-  currentFrame = 0;
-  disposed = false;
-  resolutionChanged = true;
+  private parentElement: HTMLElement;
+  private uniforms: PaperGrainUniforms;
+  private speed: number;
+  private canvas: HTMLCanvasElement;
+  private gl: WebGL2RenderingContext | null = null;
+  private program: WebGLProgram | null = null;
+  private locations: ShaderUniformLocations | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
-  constructor(parentElement, uniforms, speed) {
+  private rafId: number | null = null;
+  private lastRenderTime = 0;
+  private currentFrame = 0;
+  private disposed = false;
+  private resolutionChanged = true;
+
+  constructor(parentElement: HTMLElement, uniforms: PaperGrainUniforms, speed: number) {
     this.parentElement = parentElement;
     this.uniforms = uniforms;
     this.speed = speed;
@@ -233,12 +265,12 @@ class ShaderMount {
     this.setSpeed(speed);
   }
 
-  setUniforms = (next) => {
+  setUniforms = (next: Partial<PaperGrainUniforms>) => {
     this.uniforms = { ...this.uniforms, ...next };
     this.render(performance.now());
   };
 
-  setSpeed = (speed) => {
+  setSpeed = (speed: number) => {
     this.speed = speed;
     if (this.rafId === null && speed !== 0) {
       this.lastRenderTime = performance.now();
@@ -250,8 +282,8 @@ class ShaderMount {
     }
   };
 
-  render = (time) => {
-    if (this.disposed || !this.gl || !this.program) return;
+  private render = (time: number) => {
+    if (this.disposed || !this.gl || !this.program || !this.locations) return;
     const dt = time - this.lastRenderTime;
     this.lastRenderTime = time;
     if (this.speed !== 0) this.currentFrame += dt * this.speed;
@@ -295,6 +327,16 @@ class ShaderMount {
   };
 }
 
+interface PaperGrainProps {
+  colorBack?: string;
+  colorFront?: string;
+  pxSize?: number;
+  scale?: number;
+  speed?: number;
+  className?: string;
+  style?: CSSProperties;
+}
+
 /** React wrapper mounting a ShaderMount canvas inside a positioned div. */
 const PaperGrain = memo(function PaperGrain({
   colorBack = "#f4f1ea",
@@ -304,9 +346,9 @@ const PaperGrain = memo(function PaperGrain({
   speed = 0.06,
   className,
   style,
-}) {
-  const divRef = useRef(null);
-  const mountRef = useRef(null);
+}: PaperGrainProps) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<ShaderMount | null>(null);
 
   useEffect(() => {
     if (!divRef.current) return;
@@ -346,7 +388,7 @@ const PaperGrain = memo(function PaperGrain({
 // ---------------------------------------------------------------------------
 
 const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-function usePrefersReducedMotion() {
+function usePrefersReducedMotion(): boolean {
   return React.useSyncExternalStore(
     (onChange) => {
       const mq = window.matchMedia(MOTION_QUERY);
@@ -358,13 +400,22 @@ function usePrefersReducedMotion() {
   );
 }
 
-function TiltCard({ children, radius = 0, maxTilt = 9, scale = 1.02, glare = 0.16, className }) {
-  const cardRef = useRef(null);
-  const glareRef = useRef(null);
+export interface TiltCardProps {
+  children?: ReactNode;
+  radius?: number;
+  maxTilt?: number;
+  scale?: number;
+  glare?: number;
+  className?: string;
+}
+
+function TiltCard({ children, radius = 0, maxTilt = 9, scale = 1.02, glare = 0.16, className }: TiltCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const glareRef = useRef<HTMLDivElement>(null);
   const [hovering, setHovering] = useState(false);
 
   const onMove = useCallback(
-    (e) => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
       const el = cardRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -421,7 +472,9 @@ function TiltCard({ children, radius = 0, maxTilt = 9, scale = 1.02, glare = 0.1
 // PDF is dropped or picked, then fills the page with the PDF's own rendering.
 // ---------------------------------------------------------------------------
 
-const DOCUMENT_ASPECT = 210 / 297; // ISO 216 A4, width / height (portrait)
+export const DOCUMENT_ASPECT = 210 / 297; // ISO 216 A4, width / height (portrait)
+
+type PreviewStatus = "idle" | "loading" | "ready" | "error";
 
 /**
  * Renders page 1 of `file` onto a canvas via pdfjs-dist (peer dependency —
@@ -429,9 +482,9 @@ const DOCUMENT_ASPECT = 210 / 297; // ISO 216 A4, width / height (portrait)
  * browser's own PDF viewer chrome (toolbar, thumbnail sidebar) never shows
  * up, and pointer events reach the card normally for the tilt effect.
  */
-function usePdfPageRender(file, width) {
-  const canvasRef = useRef(null);
-  const [status, setStatus] = useState("idle"); // idle | loading | ready | error
+function usePdfPageRender(file: File | null, width: number) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [status, setStatus] = useState<PreviewStatus>("idle");
 
   useEffect(() => {
     if (!file || !canvasRef.current) {
@@ -439,7 +492,7 @@ function usePdfPageRender(file, width) {
       return;
     }
     let cancelled = false;
-    let renderTask = null;
+    let renderTask: { promise: Promise<void>; cancel: () => void } | null = null;
     setStatus("loading");
 
     (async () => {
@@ -466,9 +519,11 @@ function usePdfPageRender(file, width) {
         const canvas = canvasRef.current;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("2D canvas context unavailable");
         // pdfjs-dist v6 also requires a `canvas` field here; this targets the v4
         // API this component was built and tested against (see README note).
-        renderTask = page.render({ canvasContext: canvas.getContext("2d"), viewport });
+        renderTask = page.render({ canvasContext: ctx, viewport });
         await renderTask.promise;
         if (!cancelled) setStatus("ready");
       } catch (err) {
@@ -491,6 +546,16 @@ function usePdfPageRender(file, width) {
 const pillButtonClass =
   "rounded-full border-none bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer hover:bg-black/85";
 
+export interface DocumentCardProps {
+  file?: File | null;
+  onFileChange?: (file: File | null) => void;
+  placeholder?: string;
+  width?: number;
+  radius?: number;
+  className?: string;
+  style?: CSSProperties;
+}
+
 function DocumentCard({
   file: controlledFile,
   onFileChange,
@@ -499,18 +564,18 @@ function DocumentCard({
   radius = 3,
   className,
   style,
-}) {
-  const [internalFile, setInternalFile] = useState(null);
+}: DocumentCardProps) {
+  const [internalFile, setInternalFile] = useState<File | null>(null);
   const file = controlledFile !== undefined ? controlledFile : internalFile;
   const { canvasRef, status: previewStatus } = usePdfPageRender(file, width);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
 
   const height = width / DOCUMENT_ASPECT;
 
   const setFile = useCallback(
-    (next) => {
+    (next: File | null) => {
       if (controlledFile === undefined) setInternalFile(next);
       onFileChange?.(next);
     },
@@ -519,13 +584,13 @@ function DocumentCard({
 
   const openPicker = () => inputRef.current?.click();
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
     if (picked && picked.type === "application/pdf") setFile(picked);
     e.target.value = "";
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files?.[0];
@@ -636,8 +701,13 @@ function DocumentCard({
   );
 }
 
+export interface PdfDocumentCardProps extends DocumentCardProps {
+  /** Pass `false` to disable the pointer-weight tilt; pass an object to tune it. */
+  tilt?: false | Omit<TiltCardProps, "children">;
+}
+
 /** Public entry point: an A4 document card with pointer-weight tilt, holding an uploaded PDF. */
-function PdfDocumentCard({ tilt, ...props }) {
+function PdfDocumentCard({ tilt, ...props }: PdfDocumentCardProps) {
   const radius = props.radius ?? 3;
   if (tilt === false) return <DocumentCard {...props} />;
   return (
@@ -647,5 +717,5 @@ function PdfDocumentCard({ tilt, ...props }) {
   );
 }
 
-export { DocumentCard, TiltCard, DOCUMENT_ASPECT, PdfDocumentCard };
+export { DocumentCard, TiltCard };
 export default PdfDocumentCard;
