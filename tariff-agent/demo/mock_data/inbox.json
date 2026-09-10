@@ -1,0 +1,26 @@
+[
+  {
+    "id": "email-001",
+    "from": "trade-compliance@customs-authority.gov",
+    "subject": "Tariff Update Notice: HS 8501.10 – Import Duty Change (effective 2026-09-15)",
+    "received": "2026-09-10T08:12:00Z",
+    "read": false,
+    "body": "Effective 2026-09-15, the import duty rate for HS code 8501.10 (Electric motors, <37.5W) on shipments from COUNTRY_X into the EU increases from 4.5% to 7.8%, following updated trade agreement terms. Please ensure customs declarations and invoices reflect the new rate for all shipments departing on or after the effective date.",
+    "structured": {
+      "hs_code": "8501.10",
+      "lane": "COUNTRY_X->EU",
+      "old_rate_pct": 4.5,
+      "new_rate_pct": 7.8,
+      "effective_date": "2026-09-15"
+    }
+  },
+  {
+    "id": "email-002",
+    "from": "newsletter@logistics-weekly.example",
+    "subject": "5 trends shaping freight in 2026",
+    "received": "2026-09-09T14:03:00Z",
+    "read": true,
+    "body": "This week: port congestion, EV fleets, and more.",
+    "structured": null
+  }
+]

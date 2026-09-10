@@ -1,0 +1,32 @@
+[
+  {
+    "invoice_id": "INV-2031",
+    "customer": "Nordwind Motors GmbH",
+    "hs_code": "8501.10",
+    "lane": "COUNTRY_X->EU",
+    "goods_value_eur": 4200.00,
+    "duty_rate_pct": 4.5,
+    "duty_amount_eur": 189.00,
+    "status": "open"
+  },
+  {
+    "invoice_id": "INV-2044",
+    "customer": "Baltic Components A/S",
+    "hs_code": "8501.10",
+    "lane": "COUNTRY_X->EU",
+    "goods_value_eur": 38500.00,
+    "duty_rate_pct": 4.5,
+    "duty_amount_eur": 1732.50,
+    "status": "sent_to_customer"
+  },
+  {
+    "invoice_id": "INV-2050",
+    "customer": "Fjord Electronics ApS",
+    "hs_code": "8471.30",
+    "lane": "COUNTRY_X->EU",
+    "goods_value_eur": 9800.00,
+    "duty_rate_pct": 2.0,
+    "duty_amount_eur": 196.00,
+    "status": "open"
+  }
+]
